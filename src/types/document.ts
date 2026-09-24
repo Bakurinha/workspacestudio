@@ -13,6 +13,17 @@ export interface SpreadsheetContent {
   activeSheetIndex: number;
 }
 
+/**
+ * Seleção vertical usada pelo motor de regras. Mantemos uma coluna por seleção
+ * porque as regras atuais transformam uma coluna de cada vez.
+ */
+export interface SpreadsheetSelection {
+  sheetIndex: number;
+  columnIndex: number;
+  startRowIndex: number;
+  endRowIndex: number;
+}
+
 export interface DocumentMetadata {
   sheetCount?: number;
   pageCount?: number;
@@ -37,6 +48,7 @@ export interface PdfOcrResult {
   text: string;
   confidence: number;
   recognizedAt: string;
+  editedAt?: string;
 }
 
 interface PdfEditBase {
@@ -142,6 +154,10 @@ export interface ColumnRule {
   replace?: string;
   sequenceStart?: number;
   sequenceStep?: number;
+  /** Primeira linha de dados da faixa, em base 1. */
+  startRow?: number;
+  /** Última linha de dados da faixa, em base 1 e inclusiva. */
+  endRow?: number;
   createdAt: string;
   updatedAt: string;
 }
