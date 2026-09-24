@@ -1,9 +1,9 @@
 {
   "name": "workspace-studio",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Workspace documental local-first com planilhas, regras, histórico e edição básica de PDF.",
+  "description": "Workspace documental local-first com planilhas, regras, histórico, edição de PDF e OCR local.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -26,7 +26,8 @@
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.3.289",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tesseract.js": "7.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.2",
