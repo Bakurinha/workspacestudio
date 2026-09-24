@@ -69,17 +69,21 @@ export function SpreadsheetWorkspace({
   const [page, setPage] = useState(0);
   if (!content) return <div className="empty-state">Planilha sem conteúdo interpretável.</div>;
 
-  const sheet = content.sheets[content.activeSheetIndex];
+  const sheetIndex = content.activeSheetIndex;
+  const sheet = content.sheets[sheetIndex];
   if (!sheet) return <div className="empty-state">Nenhuma aba encontrada.</div>;
 
-  const pageCount = Math.max(1, Math.ceil(sheet.rows.length / PAGE_SIZE));
+  // Aliases validados evitam que callbacks assíncronas percam o narrowing do TypeScript.
+  const currentSheetIndex = sheetIndex;
+  const currentSheet = sheet;
+  const pageCount = Math.max(1, Math.ceil(currentSheet.rows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
-  const rows = useMemo(() => sheet.rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE), [sheet.rows, safePage]);
+  const rows = useMemo(() => currentSheet.rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE), [currentSheet.rows, safePage]);
 
   function selectCell(rowIndex: number, columnIndex: number, extend: boolean) {
     if (readOnly) return;
 
-    if (extend && selection?.sheetIndex === content.activeSheetIndex && selection.columnIndex === columnIndex) {
+    if (extend && selection?.sheetIndex === currentSheetIndex && selection.columnIndex === columnIndex) {
       onSelectionChange({
         ...selection,
         endRowIndex: rowIndex,
@@ -88,7 +92,7 @@ export function SpreadsheetWorkspace({
     }
 
     onSelectionChange({
-      sheetIndex: content.activeSheetIndex,
+      sheetIndex: currentSheetIndex,
       columnIndex,
       startRowIndex: rowIndex,
       endRowIndex: rowIndex,
@@ -96,24 +100,24 @@ export function SpreadsheetWorkspace({
   }
 
   function selectColumn(columnIndex: number) {
-    if (readOnly || sheet.rows.length === 0) return;
+    if (readOnly || currentSheet.rows.length === 0) return;
     onSelectionChange({
-      sheetIndex: content.activeSheetIndex,
+      sheetIndex: currentSheetIndex,
       columnIndex,
       startRowIndex: 0,
-      endRowIndex: sheet.rows.length - 1,
+      endRowIndex: currentSheet.rows.length - 1,
     });
   }
 
-  const selectionSummary = selection?.sheetIndex === content.activeSheetIndex
-    ? `${sheet.headers[selection.columnIndex] ?? `Coluna ${selection.columnIndex + 1}`} · linhas ${Math.min(selection.startRowIndex, selection.endRowIndex) + 1}–${Math.max(selection.startRowIndex, selection.endRowIndex) + 1}`
+  const selectionSummary = selection?.sheetIndex === currentSheetIndex
+    ? `${currentSheet.headers[selection.columnIndex] ?? `Coluna ${selection.columnIndex + 1}`} · linhas ${Math.min(selection.startRowIndex, selection.endRowIndex) + 1}–${Math.max(selection.startRowIndex, selection.endRowIndex) + 1}`
     : undefined;
 
   return (
     <div className="spreadsheet-workspace">
       <div className="sheet-tabs" role="tablist">
         {content.sheets.map((item, index) => (
-          <button key={`${item.name}-${index}`} className={index === content.activeSheetIndex ? 'active' : ''} onClick={() => { setPage(0); onSelectionChange(undefined); onSheetChange(index); }}>
+          <button key={`${item.name}-${index}`} className={index === currentSheetIndex ? 'active' : ''} onClick={() => { setPage(0); onSelectionChange(undefined); onSheetChange(index); }}>
             {item.name}
           </button>
         ))}
@@ -134,10 +138,10 @@ export function SpreadsheetWorkspace({
           <thead>
             <tr>
               <th className="row-number">#</th>
-              {sheet.headers.map((header, columnIndex) => (
+              {currentSheet.headers.map((header, columnIndex) => (
                 <th
                   key={header}
-                  className={selection?.sheetIndex === content.activeSheetIndex && selection.columnIndex === columnIndex ? 'range-column' : ''}
+                  className={selection?.sheetIndex === currentSheetIndex && selection.columnIndex === columnIndex ? 'range-column' : ''}
                   onClick={() => selectColumn(columnIndex)}
                   title={readOnly ? undefined : 'Clique para selecionar toda a coluna de dados'}
                 >
@@ -152,9 +156,9 @@ export function SpreadsheetWorkspace({
               return (
                 <tr key={rowIndex}>
                   <th className="row-number">{rowIndex + 1}</th>
-                  {sheet.headers.map((_, columnIndex) => {
+                  {currentSheet.headers.map((_, columnIndex) => {
                     const value = row[columnIndex] ?? null;
-                    const selected = cellIsSelected(selection, content.activeSheetIndex, rowIndex, columnIndex);
+                    const selected = cellIsSelected(selection, currentSheetIndex, rowIndex, columnIndex);
                     return (
                       <td
                         key={columnIndex}
@@ -166,7 +170,7 @@ export function SpreadsheetWorkspace({
                             value={value}
                             onCommit={(next) => {
                               void onCellChange({
-                                sheetIndex: content.activeSheetIndex,
+                                sheetIndex: currentSheetIndex,
                                 rowIndex,
                                 columnIndex,
                                 before: value,
@@ -186,7 +190,7 @@ export function SpreadsheetWorkspace({
       </div>
 
       <div className="pagination">
-        <span>{sheet.rows.length} registros · página {safePage + 1} de {pageCount}</span>
+        <span>{currentSheet.rows.length} registros · página {safePage + 1} de {pageCount}</span>
         <div><button className="button small" disabled={safePage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Anterior</button><button className="button small" disabled={safePage >= pageCount - 1} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>Próxima</button></div>
       </div>
     </div>
