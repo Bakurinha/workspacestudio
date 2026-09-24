@@ -18,7 +18,7 @@ async function createDocument(): Promise<DocumentRecord> {
     sha256: 'test',
     importedAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
-    originalBlob: new Blob([bytes], { type: 'application/pdf' }),
+    originalBlob: new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }),
     metadata: { pageCount: 1 },
     historyCursor: 0,
     historySequence: 0,
