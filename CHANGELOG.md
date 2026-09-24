@@ -4,6 +4,43 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.4.0] - 2026-09-24
+
+### Adicionado
+- Seleção vertical de faixa diretamente na matriz da planilha.
+- Clique em uma célula define o início; `Shift+clique` em outra célula da mesma coluna define o fim da faixa.
+- Clique no cabeçalho seleciona todos os registros daquela coluna.
+- Destaque visual da faixa selecionada e resumo com coluna/linhas escolhidas.
+- Campos **Linha inicial** e **Linha final** no painel de regras.
+- O painel de regras recebe automaticamente a coluna e a faixa selecionadas na matriz.
+- Texto reconhecido pelo OCR agora é exibido em `textarea` editável.
+- Botão **Salvar correção** para persistir ajustes humanos sobre o texto OCR no IndexedDB.
+- Campo `editedAt` nos resultados OCR para identificar correções manuais.
+- Botão **Executar OCR nesta página** visível abaixo de cada página, sem depender de hover.
+
+### Alterado
+- O motor de regras passa a aplicar transformações somente entre `startRow` e `endRow` quando informados.
+- Sequências `{SEQ:n}` reiniciam a partir de `sequenceStart` na primeira linha da faixa, em vez de usar o índice absoluto da planilha.
+- A prévia de regras passa a indicar a linha afetada.
+- Worker, core e dados de idioma do Tesseract.js passam a usar caminhos explícitos, reduzindo problemas de resolução de assets em bundlers/hospedagem estática.
+- OCR passa a informar etapas de carregamento/renderização e erros mais úteis.
+- Preservação de espaços entre palavras habilitada no Tesseract.
+- Versão do projeto atualizada para `0.4.0`.
+
+### Corrigido
+- Regras de coluna deixaram de obrigatoriamente começar no primeiro registro da planilha.
+- Evitado que uma regra pensada para parte de uma coluna altere registros acima ou abaixo da faixa desejada.
+- A ação de OCR deixou de ficar escondida somente nos controles flutuantes da página.
+
+### Testes
+- Adicionados testes para aplicação de regras em faixa parcial.
+- Validado que a sequência começa novamente na primeira linha selecionada.
+- Validado que faixas acima do limite são restringidas ao número real de registros.
+
+### Observações
+- O cabeçalho da planilha é mantido fora das transformações porque o modelo interno separa `headers` de `rows`.
+- Editar o texto OCR corrige a camada textual reconhecida e não altera visualmente o conteúdo já desenhado na página PDF.
+
 ## [0.3.2] - 2026-09-24
 
 ### Corrigido
@@ -84,7 +121,7 @@ O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Ver
 - Inserção de imagens PNG/JPEG.
 - Rotação de páginas em passos de 90°.
 - Exclusão de páginas com proteção para impedir PDF sem páginas.
-- Histórico próprio de PDF com desfazer, refazer e limpeza das operações.
+- Histórico próprio de PDF com desfazer/refazer e limpeza das operações.
 - Persistência das operações de PDF no IndexedDB sem alterar o Blob original.
 - Exportador de PDF editado baseado em `pdf-lib`.
 - Teste unitário para validar geração de PDF editado sem alteração do original.
