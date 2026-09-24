@@ -1,6 +1,6 @@
 # Workspace Studio
 
-**Versão atual:** `0.2.0`
+**Versão atual:** `0.3.0`
 
 Workspace documental local-first para importar, visualizar, editar e exportar dados e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
@@ -16,8 +16,12 @@ Workspace documental local-first para importar, visualizar, editar e exportar da
 - Presets de prefixo, sufixo, maiúsculas, minúsculas, trim e localizar/substituir.
 - Biblioteca de regras persistida no IndexedDB.
 - **Edição básica de PDF** com texto, marca-texto, cobertura branca, desenho livre, imagens, rotação e exclusão de páginas.
+- Seleção precisa por arraste para **Destacar** e **Cobrir**.
+- Desenho livre com amostragem de pontos e atualização visual limitada por frame para evitar travamento da página.
 - Histórico próprio de edição PDF com desfazer/refazer e limpeza das alterações.
 - Exportação do PDF editado para uma nova cópia usando `pdf-lib`.
+- **OCR local por página** com Português, Inglês e Português + Inglês usando Tesseract.js.
+- Resultado OCR persistido junto ao documento no IndexedDB, com confiança estimada e botão para copiar o texto.
 - Visualização de PDF com PDF.js.
 - Visualização de DOCX com `docx-preview`.
 - Visualização de TXT, JSON, Markdown e XML como texto.
@@ -37,7 +41,7 @@ Arquivo original (Blob imutável)
         ↓
 Parser / visualizador
         ↓
-Modelo interno + operações de edição
+Modelo interno + operações de edição + OCR
         ↓
 Histórico / regras
         ↓
@@ -53,9 +57,9 @@ A aplicação **não usa `localStorage` ou `sessionStorage`**. Os dados persiste
 Abra um PDF e clique em **Editar**. A barra do editor oferece:
 
 - **Texto:** insere texto na posição clicada, com tamanho e cor configuráveis.
-- **Destacar:** cria uma faixa amarela semitransparente.
-- **Cobrir:** cria uma área branca opaca, útil para correções visuais antes de inserir um novo texto.
-- **Desenhar:** adiciona traço livre com cor e espessura configuráveis.
+- **Destacar:** clique, arraste e solte para marcar exatamente a área desejada.
+- **Cobrir:** clique, arraste e solte para criar uma área branca opaca do tamanho escolhido.
+- **Desenhar:** adiciona traço livre com cor e espessura configuráveis; pontos muito próximos são agrupados para manter a interface responsiva.
 - **Imagem:** adiciona PNG ou JPEG à página.
 - **Rotação:** gira uma página em passos de 90° na exportação.
 - **Excluir página:** remove uma página, mantendo obrigatoriamente pelo menos uma.
@@ -66,7 +70,45 @@ As operações são salvas no IndexedDB separadamente do `originalBlob`. O botã
 
 ### Limite importante do editor PDF
 
-A v0.2.0 ainda **não reescreve semanticamente o texto já existente dentro do content stream do PDF**. Para corrigir visualmente um trecho existente, use **Cobrir** e depois **Texto**. Edição semântica de texto existente, formulários avançados, OCR e reposicionamento/redimensionamento interativo de objetos ficam para versões posteriores.
+A v0.3.0 ainda **não reescreve semanticamente o texto já existente dentro do content stream do PDF**. Para corrigir visualmente um trecho existente, use **Cobrir** e depois **Texto**.
+
+## OCR de PDF
+
+O OCR funciona inclusive em **Modo Leitura**.
+
+1. Abra um PDF.
+2. Escolha o idioma no painel **OCR local**.
+3. Clique no botão OCR da página desejada.
+4. Aguarde o progresso.
+5. O texto reconhecido ficará disponível abaixo da página e será salvo junto ao documento no IndexedDB.
+
+Idiomas disponíveis inicialmente:
+
+- Português (`por`)
+- Inglês (`eng`)
+- Português + Inglês (`por + eng`)
+
+### Como o OCR funciona
+
+O Tesseract.js não recebe o PDF diretamente. O Workspace Studio usa o PDF.js para renderizar a página em um canvas de resolução maior e envia esse canvas ao worker local do Tesseract.js.
+
+```text
+PDF original
+   ↓
+PDF.js
+   ↓
+Canvas em alta resolução
+   ↓
+Tesseract.js / Web Worker
+   ↓
+Texto OCR
+   ↓
+IndexedDB
+```
+
+O arquivo PDF não é enviado pelo código da aplicação para um serviço de OCR. No primeiro uso, a engine e os dados do idioma necessários ao Tesseract.js podem ser baixados da infraestrutura utilizada pela biblioteca. Portanto, o primeiro OCR pode exigir conexão com a internet e demorar mais.
+
+A qualidade do OCR depende da resolução, nitidez, contraste, orientação e qualidade do documento digitalizado.
 
 ## Teste rápido de planilhas
 
@@ -149,7 +191,7 @@ src/
 │   ├── rules/           Motor de regras
 │   ├── spreadsheet/     Planilhas
 │   └── viewers/         PDF, DOCX e texto
-├── services/            Casos de uso, histórico e edição PDF
+├── services/            Casos de uso, histórico, edição PDF e OCR
 ├── styles/              Design tokens e CSS
 ├── types/               Tipos do domínio
 └── utils/               Funções utilitárias
@@ -159,14 +201,14 @@ Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPM
 
 ## Formatos
 
-| Formato | Importar | Visualizar | Editar | Exportar |
-|---|---:|---:|---:|---:|
-| XLSX | Sim | Sim | Sim | Sim |
-| XLSM | Sim | Sim | Sim* | XLSX |
-| CSV | Sim | Sim | Sim | Sim |
-| PDF | Sim | Sim | **Sim (básico)** | **PDF editado** |
-| DOCX | Sim | Sim | Ainda não | Original |
-| TXT/MD/JSON/XML | Sim | Sim | Ainda não | Original |
+| Formato | Importar | Visualizar | Editar | OCR | Exportar |
+|---|---:|---:|---:|---:|---:|
+| XLSX | Sim | Sim | Sim | — | Sim |
+| XLSM | Sim | Sim | Sim* | — | XLSX |
+| CSV | Sim | Sim | Sim | — | Sim |
+| PDF | Sim | Sim | **Sim (básico)** | **Sim** | **PDF editado** |
+| DOCX | Sim | Sim | Ainda não | Ainda não | Original |
+| TXT/MD/JSON/XML | Sim | Sim | Ainda não | — | Original |
 
 \* Macros VBA não são executadas nem preservadas como funcionalidade editável.
 
@@ -178,12 +220,16 @@ Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPM
 - O editor PDF trabalha por operações/camadas e ainda não edita semanticamente texto existente.
 - Rotação é aplicada no PDF exportado; anotações devem preferencialmente ser feitas antes da rotação da página nesta versão.
 - Imagens adicionadas recebem tamanho/posição inicial predefinidos; redimensionamento e arraste interativos ainda serão adicionados.
+- O OCR atual trabalha por página e ainda não cria uma camada textual pesquisável dentro do PDF exportado.
+- O primeiro OCR pode exigir conexão para carregar engine/dados de idioma do Tesseract.js.
 - `.xls` binário antigo e `.ods` ainda não fazem parte do parser inicial.
 - A detecção de fontes em PDF é indicativa e inspeciona até 10 páginas durante a importação.
 
 ## Privacidade
 
-O fluxo principal é local. Arquivos importados não são enviados para servidor pelo código desta versão. Qualquer futura integração online deverá informar claramente os dados enviados e exigir ação/consentimento adequado.
+O fluxo principal é local. Arquivos importados não são enviados para servidor pelo código desta versão. No OCR, apenas os arquivos técnicos da engine/modelo podem ser baixados; a página é reconhecida no navegador por Web Worker.
+
+Qualquer futura integração que envie conteúdo do usuário para serviços externos deverá informar claramente os dados enviados e exigir ação/consentimento adequado.
 
 ## Versionamento
 
