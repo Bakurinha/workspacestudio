@@ -1,6 +1,6 @@
 # Arquitetura
 
-**Versão:** 0.4.0
+**Versão:** 0.4.1
 
 ## Objetivo
 
@@ -53,7 +53,7 @@ DocumentRecord
 ├── Blob original imutável
 ├── conteúdo interno editável (quando suportado)
 ├── operações PDF
-├── resultados OCR por página
+├── resultados OCR por página + palavras mapeadas
 ├── metadados detectados
 └── posições de histórico/cursores
 ```
@@ -130,7 +130,7 @@ pdf-lib → exportação
 nova cópia PDF
 ```
 
-Operações incluem texto, retângulo, desenho, imagem, rotação e exclusão de página.
+Operações incluem texto, retângulo, desenho, imagem, rotação, exclusão de página e substituição visual originada do OCR (`ocr-replace`).
 
 O desenho livre usa amostragem de pontos e `requestAnimationFrame` para impedir que eventos de ponteiro gerem milhares de atualizações React por segundo.
 
@@ -149,7 +149,9 @@ canvas temporário em resolução ampliada
    ↓
 Tesseract.js / Web Worker
    ↓
-PdfOcrResult
+text + blocks
+   ↓
+PdfOcrResult + PdfOcrWord[]
    ↓
 Service
    ↓
@@ -160,24 +162,45 @@ IndexedDB
 
 O Tesseract.js não processa o PDF diretamente. O serviço recebe uma `PDFPageProxy`, renderiza um canvas temporário e envia somente esse objeto local para o worker da biblioteca.
 
-Para hospedagem estática, a v0.4.0 configura explicitamente os caminhos do worker, core e dados de idioma. Isso evita depender da descoberta automática de assets internos do bundler.
+Para hospedagem estática, os caminhos do worker, core e dados de idioma são configurados explicitamente. O código da aplicação não envia o documento para um serviço remoto de OCR; a engine e os modelos de idioma podem ser baixados durante a inicialização.
 
-O código da aplicação não envia o documento para um serviço remoto de OCR. A engine e os modelos de idioma podem ser baixados durante a inicialização do worker.
-
-Resultados OCR armazenados:
+Desde a v0.4.1, o OCR solicita explicitamente o formato `blocks`. Cada palavra é convertida em `PdfOcrWord` com:
 
 ```text
-pageIndex
-language
 text
 confidence
-recognizedAt
-editedAt?       ← quando o usuário corrige o reconhecimento
+lineIndex
+xRatio
+yRatio
+widthRatio
+heightRatio
 ```
 
-O resultado textual pode ser corrigido pelo usuário. A alteração passa por `updatePdfOcrText()` no service e é persistida via repository; o componente React não acessa IndexedDB diretamente.
+As coordenadas são normalizadas em `0..1`, por isso continuam válidas independentemente do zoom visual da página.
 
-Importante: a camada OCR e as operações visuais PDF permanecem separadas. Corrigir `PdfOcrResult.text` não modifica o content stream nem o desenho da página. Alteração visual continua sendo representada por `PdfEditOperation`. Uma futura camada pesquisável poderá relacionar texto OCR e coordenadas por palavra.
+### Edição direta por OCR
+
+```text
+PdfOcrWord
+   ↓
+camada interativa sobre PDF.js
+   ↓
+usuário seleciona palavra
+   ↓
+novo texto
+   ↓
+PdfEditOperation(type = ocr-replace)
+   ↓
+history / IndexedDB
+   ↓
+pdf-lib na exportação
+```
+
+`ocr-replace` é uma substituição visual composta. Na exportação, o sistema cobre a bounding box original com branco e redesenha o texto corrigido dentro da mesma área, ajustando o tamanho para caber.
+
+A alteração também atualiza a palavra correspondente em `PdfOcrResult.words` e recompõe a transcrição OCR por linhas. Isso mantém sincronizadas a camada textual e a edição visual.
+
+Importante: isso ainda não reescreve semanticamente o content stream original. O original permanece imutável e a correção é uma camada aplicada sobre ele.
 
 ## Motor de regras
 
@@ -214,7 +237,7 @@ rules
 history
 ```
 
-A adição de campos opcionais dentro de `DocumentRecord`/`ColumnRule`, como `pdfEdits`, `pdfOcr`, `startRow` e `endRow`, não altera os indexes/object stores do Dexie. Alterações futuras em schema/indexes deverão criar uma nova versão Dexie e migration explícita.
+A adição de campos opcionais dentro de `DocumentRecord`/`ColumnRule`, como `pdfEdits`, `pdfOcr`, `words`, `startRow` e `endRow`, não altera os indexes/object stores do Dexie. Alterações futuras em schema/indexes deverão criar uma nova versão Dexie e migration explícita.
 
 ## PWA
 
