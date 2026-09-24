@@ -1,9 +1,9 @@
-.pdf-editor { min-height: 100%; display: grid; grid-template-rows: auto auto 1fr; }
-.pdf-ocr-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 20px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); font-size: 11px; }
+.pdf-editor { min-height: 100%; min-width: 0; display: flex; flex-direction: column; }
+.pdf-ocr-strip { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 20px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-muted); font-size: 11px; }
 .pdf-ocr-title { display: inline-flex; align-items: center; gap: 7px; color: var(--color-text); }
 .pdf-ocr-strip label { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; }
 .pdf-ocr-strip select { height: 31px; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-bg); color: var(--color-text); }
-.pdf-editor-toolbar { position: sticky; top: 82px; z-index: 18; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 20px; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-bg) 96%, transparent); backdrop-filter: blur(14px); }
+.pdf-editor-toolbar { position: sticky; top: 82px; z-index: 18; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 20px; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-bg) 96%, transparent); backdrop-filter: blur(14px); }
 .pdf-editor-toolbar .tool-group { display: flex; align-items: center; gap: 6px; padding-right: 8px; border-right: 1px solid var(--color-border); }
 .pdf-editor-toolbar .tool-group:last-child { border-right: 0; }
 .pdf-tool { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: 12px; font-weight: 700; }
@@ -12,13 +12,19 @@
 .pdf-inline-input { height: 34px; min-width: 120px; max-width: 220px; padding: 5px 8px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text); }
 .pdf-inline-number { width: 72px; }
 .pdf-color-input { width: 34px; height: 34px; padding: 2px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
-.pdf-editor-hint { padding: 8px 20px; color: var(--color-text-muted); font-size: 11px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
-.pdf-viewer { min-height: 100%; padding: 22px; display: grid; justify-items: center; align-content: start; gap: 18px; overflow: auto; background: #525659; }
-.pdf-page-block { width: min-content; max-width: 100%; display: grid; gap: 8px; justify-items: stretch; }
-.pdf-page-frame { position: relative; width: fit-content; max-width: 100%; line-height: 0; background: white; box-shadow: 0 4px 18px rgba(0,0,0,.32); }
+.pdf-editor-hint { flex: 0 0 auto; padding: 8px 20px; color: var(--color-text-muted); font-size: 11px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+
+/*
+ * O visualizador usa uma coluna flexível, em vez de min-content/fit-content.
+ * O canvas do PDF.js recebe suas dimensões de forma assíncrona; usar min-content
+ * antes do primeiro render fazia páginas inteiras colapsarem para poucos pixels.
+ */
+.pdf-viewer { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 22px; display: flex; flex-direction: column; align-items: center; gap: 18px; overflow: auto; background: #525659; }
+.pdf-page-block { width: min(100%, 940px); min-width: 0; flex: 0 0 auto; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.pdf-page-frame { position: relative; width: 100%; min-width: 0; line-height: 0; background: white; box-shadow: 0 4px 18px rgba(0,0,0,.32); overflow: hidden; }
 .pdf-page-frame.is-editable { cursor: crosshair; }
 .pdf-page-frame.is-interacting { touch-action: none; user-select: none; -webkit-user-select: none; }
-.pdf-page-frame .pdf-page { display: block; max-width: 100%; height: auto; box-shadow: none; }
+.pdf-page-frame .pdf-page { display: block; width: 100%; max-width: 100%; height: auto; box-shadow: none; background: white; }
 .pdf-overlay { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
 .pdf-overlay-text { position: absolute; line-height: 1; white-space: pre; font-family: Arial, Helvetica, sans-serif; transform: translateY(-2px); }
 .pdf-overlay-rect { position: absolute; }
@@ -37,7 +43,7 @@
 .pdf-edit-count { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
 .pdf-ocr-progress { position: absolute; inset: 50% auto auto 50%; z-index: 8; transform: translate(-50%, -50%); min-width: 190px; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; gap: 6px 9px; padding: 12px 16px; border-radius: 12px; background: rgba(18,22,30,.9); color: white; box-shadow: 0 8px 28px rgba(0,0,0,.28); line-height: 1.2; }
 .pdf-ocr-progress span { grid-column: 1 / -1; max-width: 260px; color: rgba(255,255,255,.72); font-size: 10px; text-align: center; }
-.pdf-ocr-error { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface)); color: var(--color-danger); font-size: 11px; line-height: 1.4; }
+.pdf-ocr-error { width: 100%; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface)); color: var(--color-danger); font-size: 11px; line-height: 1.4; }
 .pdf-ocr-result { width: 100%; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); color: var(--color-text); line-height: 1.4; overflow: hidden; }
 .pdf-ocr-result summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 11px; cursor: pointer; color: var(--color-text-muted); font-size: 11px; }
 .pdf-ocr-result summary span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text); font-weight: 700; }
@@ -52,6 +58,7 @@
 
 @media (max-width: 1040px) {
   .pdf-editor-toolbar { top: 154px; }
+  .pdf-page-block { width: min(100%, 840px); }
 }
 
 @media (max-width: 780px) {
@@ -63,7 +70,7 @@
   .pdf-viewer { padding: 10px; gap: 12px; }
   .pdf-tool span { display: none; }
   .pdf-inline-input { min-width: 100px; max-width: 150px; }
-  .pdf-page-block { width: 100%; justify-items: center; }
+  .pdf-page-block { width: 100%; }
   .pdf-ocr-result, .pdf-ocr-error { width: 100%; }
   .pdf-ocr-result summary { align-items: flex-start; flex-direction: column; }
 }
