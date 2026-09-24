@@ -17,6 +17,7 @@ docs/adr/ADR-003-motor-regras.md
 docs/releases/0.1.0.md
 docs/releases/0.1.1.md
 docs/releases/0.1.2.md
+docs/releases/0.2.0.md
 examples/README.md
 examples/inventario-exemplo.csv
 index.html
@@ -44,8 +45,12 @@ src/modules/spreadsheet/spreadsheetParser.ts
 src/modules/viewers/DocxViewer.tsx
 src/modules/viewers/PdfViewer.tsx
 src/modules/viewers/TextViewer.tsx
+src/modules/viewers/pdfEditor.css
+src/modules/viewers/pdfExport.test.ts
+src/modules/viewers/pdfExport.ts
 src/services/fileImportService.ts
 src/services/historyService.ts
+src/services/pdfEditService.ts
 src/styles/global.css
 src/styles/tokens.css
 src/types/document.ts
