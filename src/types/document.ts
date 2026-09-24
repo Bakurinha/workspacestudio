@@ -20,6 +20,65 @@ export interface DocumentMetadata {
   warnings?: string[];
 }
 
+export interface PdfColor {
+  r: number;
+  g: number;
+  b: number;
+}
+
+export interface PdfPoint {
+  xRatio: number;
+  yRatio: number;
+}
+
+interface PdfEditBase {
+  id: string;
+  pageIndex: number;
+  createdAt: string;
+}
+
+export type PdfEditOperation =
+  | (PdfEditBase & {
+      type: 'text';
+      xRatio: number;
+      yRatio: number;
+      text: string;
+      size: number;
+      color: PdfColor;
+    })
+  | (PdfEditBase & {
+      type: 'rectangle';
+      xRatio: number;
+      yRatio: number;
+      widthRatio: number;
+      heightRatio: number;
+      color: PdfColor;
+      opacity: number;
+      purpose: 'highlight' | 'whiteout';
+    })
+  | (PdfEditBase & {
+      type: 'drawing';
+      points: PdfPoint[];
+      width: number;
+      color: PdfColor;
+    })
+  | (PdfEditBase & {
+      type: 'image';
+      imageBlob: Blob;
+      mimeType: 'image/png' | 'image/jpeg';
+      xRatio: number;
+      yRatio: number;
+      widthRatio: number;
+      heightRatio: number;
+    })
+  | (PdfEditBase & {
+      type: 'rotate';
+      degrees: 90 | -90;
+    })
+  | (PdfEditBase & {
+      type: 'delete-page';
+    });
+
 export interface DocumentRecord {
   id: string;
   name: string;
@@ -35,6 +94,8 @@ export interface DocumentRecord {
   metadata: DocumentMetadata;
   historyCursor: number;
   historySequence: number;
+  pdfEdits?: PdfEditOperation[];
+  pdfEditCursor?: number;
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'custom';
