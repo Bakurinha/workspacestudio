@@ -4,6 +4,33 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.4.1] - 2026-09-24
+
+### Adicionado
+- OCR passa a solicitar explicitamente `blocks` ao Tesseract.js para obter palavras e bounding boxes.
+- Novo tipo `PdfOcrWord` com texto, confiança, linha e coordenadas normalizadas.
+- Modo **Editar texto na página** após executar OCR.
+- Camada interativa sobre o PDF com caixas discretas para cada palavra reconhecida.
+- Editor de palavra selecionada com ação **Aplicar no PDF**.
+- Nova operação PDF `ocr-replace`, que cobre a área da palavra original e desenha a correção visual dentro da mesma caixa.
+- Ajuste automático do tamanho do texto corrigido para caber na largura reconhecida.
+- Teste unitário para normalização das bounding boxes OCR.
+
+### Alterado
+- O painel de OCR textual passa a se chamar **Texto OCR**, deixando explícito que ele edita a transcrição e não o desenho da página.
+- Correções diretas de palavras atualizam também a representação textual OCR armazenada no IndexedDB.
+- Resultados OCR antigos, sem coordenadas por palavra, solicitam nova execução do OCR para habilitar edição direta.
+- Versão do projeto atualizada para `0.4.1`.
+
+### Corrigido
+- Removida a ambiguidade em que “OCR editável” parecia significar alteração visual do PDF, quando anteriormente apenas a transcrição podia ser editada.
+- A edição OCR agora possui um caminho visual concreto dentro da própria página, sem exigir selecionar manualmente a área com Cobrir + Texto.
+
+### Limitações
+- A substituição continua sendo uma camada visual; o content stream original não é reescrito semanticamente.
+- A fonte de substituição na exportação é Helvetica nesta versão.
+- Bounding boxes dependem da qualidade do reconhecimento e podem ser imprecisas em documentos inclinados, borrados ou complexos.
+
 ## [0.4.0] - 2026-09-24
 
 ### Adicionado
@@ -121,7 +148,7 @@ O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Ver
 - Inserção de imagens PNG/JPEG.
 - Rotação de páginas em passos de 90°.
 - Exclusão de páginas com proteção para impedir PDF sem páginas.
-- Histórico próprio de PDF com desfazer/refazer e limpeza das operações.
+- Histórico próprio de PDF com desfazer/refazer e limpeza das alterações.
 - Persistência das operações de PDF no IndexedDB sem alterar o Blob original.
 - Exportador de PDF editado baseado em `pdf-lib`.
 - Teste unitário para validar geração de PDF editado sem alteração do original.
@@ -160,7 +187,7 @@ O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Ver
 
 ### Documentação
 - Adicionada a etapa `docs/releases/0.1.2.md` com causa, correção, validação e impacto.
-- README atualizado para refletir que a restauração efetiva dos workflows ocorreu na v0.1.2.
+- README atualizado para reflet que a restauração efetiva dos workflows ocorreu na v0.1.2.
 
 ### Observação
 - Como ainda não existe `package-lock.json`, os workflows usam `npm install`. A migração para `npm ci` fica prevista após geração e validação do lockfile.
