@@ -1,4 +1,5 @@
 .github/workflows/ci.yml
+.github/workflows/deploy-pages.yml
 .gitignore
 ARCHITECTURE.md
 CHANGELOG.md
@@ -14,6 +15,7 @@ docs/adr/ADR-001-indexeddb.md
 docs/adr/ADR-002-original-imutavel.md
 docs/adr/ADR-003-motor-regras.md
 docs/releases/0.1.0.md
+docs/releases/0.1.1.md
 examples/README.md
 examples/inventario-exemplo.csv
 index.html

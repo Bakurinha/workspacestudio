@@ -4,6 +4,17 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.1.1] - 2026-09-24
+
+### Corrigido
+- Corrigida a configuração de caminhos do Vite para publicação em subdiretórios como GitHub Pages.
+- Adicionado workflow dedicado de deploy para GitHub Pages, publicando o build `dist/` em vez do código-fonte TSX.
+- Manifest e ícone passam a usar caminhos relativos compatíveis com GitHub Pages.
+- Adicionada mensagem de inicialização/falha no HTML para evitar uma página completamente branca quando o JavaScript não é carregado corretamente.
+
+### Documentação
+- README agora diferencia claramente execução por Vite, build de produção e publicação no GitHub Pages.
+
 ## [0.1.0] - 2026-09-24
 
 ### Adicionado

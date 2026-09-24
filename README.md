@@ -1,10 +1,10 @@
 # Workspace Studio
 
-**Versão atual:** `0.1.0`
+**Versão atual:** `0.1.1`
 
 Workspace documental local-first para importar, visualizar, editar e exportar dados e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
-## O que já funciona na v0.1.0
+## O que já funciona
 
 - Biblioteca de arquivos persistida em **IndexedDB**.
 - Arquivo original armazenado como `Blob` e tratado como imutável.
@@ -98,6 +98,35 @@ Testes:
 ```bash
 npm test
 ```
+
+
+## Executando corretamente
+
+Este projeto usa **React + TypeScript + Vite**. O `index.html` da raiz é código-fonte de desenvolvimento e **não deve ser aberto diretamente por duplo clique** (`file://`).
+
+Para desenvolvimento local:
+
+```bash
+npm install
+npm run dev
+```
+
+Para testar o mesmo conteúdo que será publicado:
+
+```bash
+npm run build
+npm run preview
+```
+
+O build pronto para hospedagem fica em `dist/`.
+
+## GitHub Pages
+
+A partir da v0.1.1 o repositório inclui `.github/workflows/deploy-pages.yml`, que gera o build Vite e publica **somente o diretório `dist/`**. Isso evita a tela branca causada por servir arquivos `.tsx` diretamente.
+
+No GitHub, em **Settings → Pages**, configure **Source: GitHub Actions**. Depois de um push na branch `main`, o workflow `Deploy GitHub Pages` fará a publicação.
+
+O Vite usa `base: './'`, permitindo que os assets funcionem tanto em domínio próprio quanto em URLs de projeto como `usuario.github.io/repositorio/`.
 
 ## Android / APK
 
