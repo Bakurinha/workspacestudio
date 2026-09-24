@@ -49,12 +49,13 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
 
   useEffect(() => {
     let cancelled = false;
-    let loaded: PDFDocumentProxy | undefined;
+    let loadingTask: ReturnType<typeof getDocument> | undefined;
     setError(undefined);
 
     void (async () => {
       try {
-        loaded = await getDocument({ data: await document.originalBlob.arrayBuffer() }).promise;
+        loadingTask = getDocument({ data: await document.originalBlob.arrayBuffer() });
+        const loaded = await loadingTask.promise;
         if (!cancelled) setPdf(loaded);
       } catch (reason) {
         if (!cancelled) setError(reason instanceof Error ? reason.message : 'Falha ao renderizar PDF.');
@@ -63,7 +64,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
 
     return () => {
       cancelled = true;
-      if (loaded) void loaded.destroy();
+      if (loadingTask) void loadingTask.destroy();
     };
   }, [document.id, document.originalBlob]);
 
@@ -173,7 +174,6 @@ interface PdfPageProps {
 
 function PdfPage({ pdf, pageIndex, edits, readOnly, tool, text, fontSize, color, strokeWidth, canDelete, onAdd }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
   const [draftPoints, setDraftPoints] = useState<PdfPoint[]>([]);
 
   const rotation = edits
@@ -282,7 +282,6 @@ function PdfPage({ pdf, pageIndex, edits, readOnly, tool, text, fontSize, color,
 
   return (
     <div
-      ref={frameRef}
       className={`pdf-page-frame ${!readOnly && tool !== 'select' ? 'is-editable' : ''} ${tool === 'draw' ? 'is-drawing' : ''}`}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
