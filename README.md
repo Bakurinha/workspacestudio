@@ -1,6 +1,6 @@
 # Workspace Studio
 
-**Versão atual:** `0.1.2`
+**Versão atual:** `0.2.0`
 
 Workspace documental local-first para importar, visualizar, editar e exportar dados e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
@@ -11,14 +11,13 @@ Workspace documental local-first para importar, visualizar, editar e exportar da
 - Modo **Leitura** por padrão.
 - Importação e edição de `XLSX`, `XLSM` e `CSV`.
 - Exportação de uma nova cópia da planilha editada.
-- Múltiplas abas de planilha.
-- Edição de células.
-- Adição de registros e colunas.
-- Histórico persistente com **desfazer/refazer**.
-- Motor de regras para colunas.
-- Regra de serial com tokens como `{SEQ:4}`, `{ROW}` e `{COLUMN:Marca}`.
-- Presets: prefixo, sufixo, maiúsculas, minúsculas, trim e localizar/substituir.
+- Múltiplas abas, edição de células, adição de registros/colunas e histórico com desfazer/refazer.
+- Motor de regras para colunas com tokens como `{SEQ:4}`, `{ROW}` e `{COLUMN:Marca}`.
+- Presets de prefixo, sufixo, maiúsculas, minúsculas, trim e localizar/substituir.
 - Biblioteca de regras persistida no IndexedDB.
+- **Edição básica de PDF** com texto, marca-texto, cobertura branca, desenho livre, imagens, rotação e exclusão de páginas.
+- Histórico próprio de edição PDF com desfazer/refazer e limpeza das alterações.
+- Exportação do PDF editado para uma nova cópia usando `pdf-lib`.
 - Visualização de PDF com PDF.js.
 - Visualização de DOCX com `docx-preview`.
 - Visualização de TXT, JSON, Markdown e XML como texto.
@@ -36,9 +35,9 @@ O arquivo importado nunca é editado diretamente:
 ```text
 Arquivo original (Blob imutável)
         ↓
-Parser
+Parser / visualizador
         ↓
-Modelo interno editável
+Modelo interno + operações de edição
         ↓
 Histórico / regras
         ↓
@@ -47,28 +46,39 @@ Nova cópia exportada
 
 A aplicação **não usa `localStorage` ou `sessionStorage`**. Os dados persistentes controlados pela aplicação ficam no IndexedDB através de uma camada de repositórios.
 
-> A versão atual não cria service worker de cache offline. Isso é intencional para não persistir dados da aplicação fora do IndexedDB nesta fase. O manifest continua permitindo instalação em navegadores que não exigem service worker para installability.
+> A versão atual não cria service worker de cache offline. Isso é intencional para não persistir dados da aplicação fora do IndexedDB nesta fase.
 
-## Teste rápido
+## Editor PDF
+
+Abra um PDF e clique em **Editar**. A barra do editor oferece:
+
+- **Texto:** insere texto na posição clicada, com tamanho e cor configuráveis.
+- **Destacar:** cria uma faixa amarela semitransparente.
+- **Cobrir:** cria uma área branca opaca, útil para correções visuais antes de inserir um novo texto.
+- **Desenhar:** adiciona traço livre com cor e espessura configuráveis.
+- **Imagem:** adiciona PNG ou JPEG à página.
+- **Rotação:** gira uma página em passos de 90° na exportação.
+- **Excluir página:** remove uma página, mantendo obrigatoriamente pelo menos uma.
+- **Desfazer/Refazer:** controla o cursor das operações persistidas.
+- **Limpar edições:** volta ao estado original sem apagar o arquivo fonte.
+
+As operações são salvas no IndexedDB separadamente do `originalBlob`. O botão **Exportar** gera `nome-editado.pdf` aplicando somente as operações ativas.
+
+### Limite importante do editor PDF
+
+A v0.2.0 ainda **não reescreve semanticamente o texto já existente dentro do content stream do PDF**. Para corrigir visualmente um trecho existente, use **Cobrir** e depois **Texto**. Edição semântica de texto existente, formulários avançados, OCR e reposicionamento/redimensionamento interativo de objetos ficam para versões posteriores.
+
+## Teste rápido de planilhas
 
 O diretório `examples/` contém `inventario-exemplo.csv`. Importe esse arquivo e aplique o preset **Serial sequencial** para testar o motor sem precisar preparar uma planilha.
 
 ## Exemplo de serial dinâmico
 
-Modelo:
-
 ```text
 ABCY-{COLUMN:Marca}-{COLUMN:Modelo}-{SEQ:4}-AABA
 ```
 
-Dados:
-
-```text
-Marca: DELL
-Modelo: P2422H
-```
-
-Saída:
+Com `Marca: DELL` e `Modelo: P2422H`:
 
 ```text
 ABCY-DELL-P2422H-0001-AABA
@@ -78,42 +88,17 @@ ABCY-DELL-P2422H-0003-AABA
 
 ## Instalação para desenvolvimento
 
-Requisitos:
-
-- Node.js moderno.
-- npm.
+Requisitos: Node.js moderno e npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Build:
-
-```bash
-npm run build
-```
-
-Testes:
+Build e testes:
 
 ```bash
 npm test
-```
-
-## Executando corretamente
-
-Este projeto usa **React + TypeScript + Vite**. O `index.html` da raiz é código-fonte de desenvolvimento e **não deve ser aberto diretamente por duplo clique** (`file://`).
-
-Para desenvolvimento local:
-
-```bash
-npm install
-npm run dev
-```
-
-Para testar o mesmo conteúdo que será publicado:
-
-```bash
 npm run build
 npm run preview
 ```
@@ -122,9 +107,7 @@ O build pronto para hospedagem fica em `dist/`.
 
 ## GitHub Pages
 
-A configuração efetiva de deploy está presente a partir da **v0.1.2** em `.github/workflows/deploy-pages.yml`.
-
-O fluxo de publicação é:
+A configuração efetiva de deploy está em `.github/workflows/deploy-pages.yml`.
 
 ```text
 push em main
@@ -138,41 +121,21 @@ dist/
 GitHub Pages
 ```
 
-O Pages publica **somente o diretório `dist/`**. O código-fonte `.tsx` nunca deve ser usado como publicação estática direta.
-
-O workflow usa `actions/configure-pages` com tentativa de habilitação automática. Se a política da conta/repositório impedir essa configuração automática, abra **Settings → Pages** e selecione **GitHub Actions** como origem.
-
-O Vite usa `base: './'`, permitindo que os assets funcionem em URLs de projeto como `usuario.github.io/repositorio/` e em outros subdiretórios compatíveis.
-
-### Validação automática
+O Pages publica **somente o diretório `dist/`**. O Vite usa `base: './'`, permitindo funcionamento em URLs de projeto como `usuario.github.io/repositorio/`.
 
 O repositório também possui `.github/workflows/ci.yml`, que executa testes e build em pushes para `main` e pull requests.
 
-> Ainda não existe `package-lock.json`, portanto os workflows usam `npm install`. Após gerar e validar o lockfile, a instalação deverá migrar para `npm ci` para builds reproduzíveis.
+> Ainda não existe `package-lock.json`; os workflows usam `npm install`. Após gerar e validar o lockfile, a instalação deverá migrar para `npm ci`.
 
 ## Android / APK
 
-O projeto já contém `capacitor.config.ts` e dependências do Capacitor.
-
-Na primeira preparação do projeto Android:
-
 ```bash
 npm run android:add
-```
-
-Para sincronizar alterações web:
-
-```bash
 npm run android:sync
-```
-
-Para abrir o projeto Android no Android Studio:
-
-```bash
 npm run android:open
 ```
 
-A assinatura e geração de APK/AAB são realizadas pelo toolchain Android/Android Studio. O diretório `android/` é gerado localmente para evitar manter artefatos nativos desnecessários antes da primeira configuração.
+A assinatura e geração de APK/AAB são realizadas pelo toolchain Android/Android Studio.
 
 ## Estrutura
 
@@ -186,22 +149,13 @@ src/
 │   ├── rules/           Motor de regras
 │   ├── spreadsheet/     Planilhas
 │   └── viewers/         PDF, DOCX e texto
-├── services/            Casos de uso e histórico
+├── services/            Casos de uso, histórico e edição PDF
 ├── styles/              Design tokens e CSS
 ├── types/               Tipos do domínio
 └── utils/               Funções utilitárias
 ```
 
-Consulte também:
-
-- `ARCHITECTURE.md`
-- `CHANGELOG.md`
-- `ROADMAP.md`
-- `docs/DEVELOPMENT_RULES.md`
-- `docs/adr/`
-- `docs/releases/0.1.0.md`
-- `docs/releases/0.1.1.md`
-- `docs/releases/0.1.2.md`
+Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPMENT_RULES.md`, `docs/adr/` e `docs/releases/`.
 
 ## Formatos
 
@@ -210,41 +164,30 @@ Consulte também:
 | XLSX | Sim | Sim | Sim | Sim |
 | XLSM | Sim | Sim | Sim* | XLSX |
 | CSV | Sim | Sim | Sim | Sim |
-| PDF | Sim | Sim | Ainda não | Original |
+| PDF | Sim | Sim | **Sim (básico)** | **PDF editado** |
 | DOCX | Sim | Sim | Ainda não | Original |
 | TXT/MD/JSON/XML | Sim | Sim | Ainda não | Original |
 
-\* Macros VBA não são executadas nem preservadas como funcionalidade editável. A cópia exportada deve ser validada quando o arquivo original usar recursos avançados do Excel.
+\* Macros VBA não são executadas nem preservadas como funcionalidade editável.
 
 ## Limitações conhecidas
 
 - O editor de planilhas ainda não replica todos os recursos do Microsoft Excel.
 - A fidelidade de recursos avançados de XLSX depende do suporte do ExcelJS.
 - DOCX é visualizado via HTML e pode divergir do Word em layouts complexos.
-- PDF está em modo leitura nesta versão.
+- O editor PDF trabalha por operações/camadas e ainda não edita semanticamente texto existente.
+- Rotação é aplicada no PDF exportado; anotações devem preferencialmente ser feitas antes da rotação da página nesta versão.
+- Imagens adicionadas recebem tamanho/posição inicial predefinidos; redimensionamento e arraste interativos ainda serão adicionados.
 - `.xls` binário antigo e `.ods` ainda não fazem parte do parser inicial.
-- A detecção de fontes em PDF é indicativa e inspeciona até 10 páginas durante a importação para reduzir custo de processamento.
+- A detecção de fontes em PDF é indicativa e inspeciona até 10 páginas durante a importação.
 
 ## Privacidade
 
-O fluxo principal é local. Arquivos importados não são enviados para servidor pelo código desta versão.
-
-Qualquer futura integração online deverá:
-
-1. ser claramente identificada;
-2. explicar quais dados sairão do dispositivo;
-3. pedir ação/consentimento adequado;
-4. ser documentada no CHANGELOG e README.
+O fluxo principal é local. Arquivos importados não são enviados para servidor pelo código desta versão. Qualquer futura integração online deverá informar claramente os dados enviados e exigir ação/consentimento adequado.
 
 ## Versionamento
 
-O projeto utiliza Semantic Versioning:
-
-```text
-MAJOR.MINOR.PATCH
-```
-
-Toda atualização deve ser documentada no `CHANGELOG.md` e refletida no README quando alterar capacidades ou uso.
+O projeto utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`). Toda atualização deve ser documentada no `CHANGELOG.md` e refletida no README quando alterar capacidades ou uso.
 
 ## Licença
 
