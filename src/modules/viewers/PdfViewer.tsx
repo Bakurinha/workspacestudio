@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Copy,
   Eraser,
   Highlighter,
   ImagePlus,
@@ -8,6 +9,7 @@ import {
   Redo2,
   RotateCcw,
   RotateCw,
+  ScanText,
   Trash2,
   Type,
   Undo2,
@@ -15,7 +17,12 @@ import {
 import { GlobalWorkerOptions, getDocument, type PDFDocumentProxy } from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { clearPdfEdits, commitPdfEdit, redoPdfEdit, undoPdfEdit } from '../../services/pdfEditService';
-import type { DocumentRecord, PdfColor, PdfEditOperation, PdfPoint } from '../../types/document';
+import {
+  persistPdfOcrResult,
+  recognizePdfPage,
+  type PdfOcrLanguageMode,
+} from '../../services/pdfOcrService';
+import type { DocumentRecord, PdfColor, PdfEditOperation, PdfOcrResult, PdfPoint } from '../../types/document';
 import { activePdfEdits } from './pdfExport';
 import './pdfEditor.css';
 
@@ -29,6 +36,17 @@ interface PdfViewerProps {
   onDocumentChange: (document: DocumentRecord) => void;
 }
 
+interface DraftRectangle {
+  xRatio: number;
+  yRatio: number;
+  widthRatio: number;
+  heightRatio: number;
+}
+
+const MIN_DRAWING_DISTANCE = 0.0018;
+const MAX_DRAWING_POINTS = 900;
+const MIN_RECTANGLE_SIZE = 0.003;
+
 export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerProps) {
   const [pdf, setPdf] = useState<PDFDocumentProxy>();
   const [error, setError] = useState<string>();
@@ -37,6 +55,11 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
   const [fontSize, setFontSize] = useState(16);
   const [color, setColor] = useState('#1d2433');
   const [strokeWidth, setStrokeWidth] = useState(2);
+  const [ocrLanguage, setOcrLanguage] = useState<PdfOcrLanguageMode>('por');
+  const [ocrBusyPage, setOcrBusyPage] = useState<number>();
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrStatus, setOcrStatus] = useState('');
+  const [ocrError, setOcrError] = useState<{ pageIndex: number; message: string }>();
 
   const activeEdits = useMemo(() => activePdfEdits(document), [document]);
   const deletedPages = useMemo(
@@ -89,6 +112,34 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
     onDocumentChange(await clearPdfEdits(document));
   }
 
+  async function handleOcrPage(pageIndex: number) {
+    if (!pdf || ocrBusyPage !== undefined) return;
+
+    setOcrBusyPage(pageIndex);
+    setOcrProgress(0);
+    setOcrStatus('Preparando página');
+    setOcrError(undefined);
+
+    try {
+      const page = await pdf.getPage(pageIndex + 1);
+      const result = await recognizePdfPage(page, ocrLanguage, ({ progress, status }) => {
+        setOcrProgress(Math.max(0, Math.min(1, progress)));
+        setOcrStatus(status);
+      });
+      const updated = await persistPdfOcrResult(document.id, result);
+      onDocumentChange(updated);
+    } catch (reason) {
+      setOcrError({
+        pageIndex,
+        message: reason instanceof Error ? reason.message : 'Falha durante o OCR.',
+      });
+    } finally {
+      setOcrBusyPage(undefined);
+      setOcrProgress(0);
+      setOcrStatus('');
+    }
+  }
+
   if (error) return <div className="error-panel">{error}</div>;
 
   const cursor = document.pdfEditCursor ?? document.pdfEdits?.length ?? 0;
@@ -96,6 +147,19 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
 
   return (
     <div className="pdf-editor">
+      <div className="pdf-ocr-strip">
+        <div className="pdf-ocr-title"><ScanText size={16} /><strong>OCR local</strong></div>
+        <label>
+          Idioma
+          <select value={ocrLanguage} disabled={ocrBusyPage !== undefined} onChange={(event) => setOcrLanguage(event.target.value as PdfOcrLanguageMode)}>
+            <option value="por">Português</option>
+            <option value="eng">Inglês</option>
+            <option value="por-eng">Português + Inglês</option>
+          </select>
+        </label>
+        <span>Use o botão OCR em cada página. O primeiro uso pode baixar a engine e o modelo de idioma; a imagem da página é processada no navegador.</span>
+      </div>
+
       {!readOnly && (
         <div className="pdf-editor-toolbar" aria-label="Ferramentas de edição PDF">
           <div className="tool-group">
@@ -132,7 +196,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
 
       {!readOnly && (
         <div className="pdf-editor-hint">
-          Clique na página com a ferramenta escolhida. “Cobrir” cria uma área branca para correções visuais; o texto original do PDF não é reescrito semanticamente nesta versão.
+          Texto: clique para inserir. Destacar/Cobrir: clique, arraste e solte para escolher a área exata. Desenhar: mantenha pressionado e trace normalmente.
         </div>
       )}
 
@@ -143,6 +207,12 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             pdf={pdf}
             pageIndex={pageIndex}
             edits={activeEdits.filter((edit) => edit.pageIndex === pageIndex)}
+            ocrResult={document.pdfOcr?.find((result) => result.pageIndex === pageIndex)}
+            ocrBusy={ocrBusyPage === pageIndex}
+            ocrDisabled={ocrBusyPage !== undefined && ocrBusyPage !== pageIndex}
+            ocrProgress={ocrBusyPage === pageIndex ? ocrProgress : 0}
+            ocrStatus={ocrBusyPage === pageIndex ? ocrStatus : ''}
+            ocrError={ocrError?.pageIndex === pageIndex ? ocrError.message : undefined}
             readOnly={readOnly}
             tool={tool}
             text={text}
@@ -151,6 +221,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             strokeWidth={strokeWidth}
             canDelete={visiblePages.length > 1}
             onAdd={addOperation}
+            onOcr={() => handleOcrPage(pageIndex)}
           />
         ))}
       </div>
@@ -162,6 +233,12 @@ interface PdfPageProps {
   pdf: PDFDocumentProxy;
   pageIndex: number;
   edits: PdfEditOperation[];
+  ocrResult?: PdfOcrResult;
+  ocrBusy: boolean;
+  ocrDisabled: boolean;
+  ocrProgress: number;
+  ocrStatus: string;
+  ocrError?: string;
   readOnly: boolean;
   tool: PdfTool;
   text: string;
@@ -170,11 +247,35 @@ interface PdfPageProps {
   strokeWidth: number;
   canDelete: boolean;
   onAdd: (operation: PdfEditOperation) => Promise<void>;
+  onOcr: () => Promise<void>;
 }
 
-function PdfPage({ pdf, pageIndex, edits, readOnly, tool, text, fontSize, color, strokeWidth, canDelete, onAdd }: PdfPageProps) {
+function PdfPage({
+  pdf,
+  pageIndex,
+  edits,
+  ocrResult,
+  ocrBusy,
+  ocrDisabled,
+  ocrProgress,
+  ocrStatus,
+  ocrError,
+  readOnly,
+  tool,
+  text,
+  fontSize,
+  color,
+  strokeWidth,
+  canDelete,
+  onAdd,
+  onOcr,
+}: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const draftPointsRef = useRef<PdfPoint[]>([]);
+  const draftFrameRef = useRef<number>();
+  const rectangleStartRef = useRef<PdfPoint>();
   const [draftPoints, setDraftPoints] = useState<PdfPoint[]>([]);
+  const [draftRectangle, setDraftRectangle] = useState<DraftRectangle>();
 
   const rotation = edits
     .filter((edit): edit is Extract<PdfEditOperation, { type: 'rotate' }> => edit.type === 'rotate')
@@ -182,25 +283,40 @@ function PdfPage({ pdf, pageIndex, edits, readOnly, tool, text, fontSize, color,
 
   useEffect(() => {
     let cancelled = false;
+    let renderTask: ReturnType<Awaited<ReturnType<PDFDocumentProxy['getPage']>>['render']> | undefined;
+
     void (async () => {
-      const page = await pdf.getPage(pageIndex + 1);
-      if (cancelled) return;
-      const viewport = page.getViewport({ scale: 1.35 });
-      const canvas = canvasRef.current;
-      const context = canvas?.getContext('2d');
-      if (!canvas || !context) return;
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      await page.render({ canvas, canvasContext: context, viewport }).promise;
+      try {
+        const page = await pdf.getPage(pageIndex + 1);
+        if (cancelled) return;
+        const viewport = page.getViewport({ scale: 1.35 });
+        const canvas = canvasRef.current;
+        const context = canvas?.getContext('2d');
+        if (!canvas || !context) return;
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        renderTask = page.render({ canvas, canvasContext: context, viewport });
+        await renderTask.promise;
+      } catch (reason) {
+        if (!cancelled && !(reason instanceof Error && reason.name === 'RenderingCancelledException')) throw reason;
+      }
     })();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+      renderTask?.cancel();
+    };
   }, [pdf, pageIndex]);
+
+  useEffect(() => () => {
+    if (draftFrameRef.current !== undefined) cancelAnimationFrame(draftFrameRef.current);
+  }, []);
 
   function pointFromEvent(event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>): PdfPoint {
     const rect = event.currentTarget.getBoundingClientRect();
     return {
-      xRatio: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
-      yRatio: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+      xRatio: Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))),
+      yRatio: Math.max(0, Math.min(1, (event.clientY - rect.top) / Math.max(1, rect.height))),
     };
   }
 
@@ -209,59 +325,122 @@ function PdfPage({ pdf, pageIndex, edits, readOnly, tool, text, fontSize, color,
   }
 
   function handleClick(event: React.MouseEvent<HTMLDivElement>) {
-    if (readOnly || tool === 'select' || tool === 'draw') return;
+    if (readOnly || tool !== 'text' || !text.trim()) return;
     const point = pointFromEvent(event);
+    void onAdd({ ...baseOperation(), type: 'text', ...point, text, size: fontSize, color });
+  }
 
-    if (tool === 'text') {
-      if (!text.trim()) return;
-      void onAdd({ ...baseOperation(), type: 'text', ...point, text, size: fontSize, color });
-      return;
-    }
-
-    if (tool === 'highlight') {
-      void onAdd({
-        ...baseOperation(),
-        type: 'rectangle',
-        purpose: 'highlight',
-        ...point,
-        widthRatio: 0.24,
-        heightRatio: 0.035,
-        color: { r: 255, g: 225, b: 0 },
-        opacity: 0.35,
-      });
-      return;
-    }
-
-    void onAdd({
-      ...baseOperation(),
-      type: 'rectangle',
-      purpose: 'whiteout',
-      ...point,
-      widthRatio: 0.24,
-      heightRatio: 0.05,
-      color: { r: 255, g: 255, b: 255 },
-      opacity: 1,
+  function scheduleDraftRender() {
+    if (draftFrameRef.current !== undefined) return;
+    draftFrameRef.current = requestAnimationFrame(() => {
+      setDraftPoints([...draftPointsRef.current]);
+      draftFrameRef.current = undefined;
     });
   }
 
+  function appendDrawingPoint(point: PdfPoint, force = false) {
+    const points = draftPointsRef.current;
+    const previous = points[points.length - 1];
+    if (!force && previous) {
+      const distance = Math.hypot(point.xRatio - previous.xRatio, point.yRatio - previous.yRatio);
+      if (distance < MIN_DRAWING_DISTANCE) return;
+    }
+
+    let next = [...points, point];
+    if (next.length > MAX_DRAWING_POINTS) {
+      // Reduz pontos antigos de forma previsível para evitar milhares de renders/objetos
+      // em traços longos, mantendo o formato visual e a interface responsiva.
+      next = next.filter((_, index) => index % 2 === 0);
+    }
+    draftPointsRef.current = next;
+    scheduleDraftRender();
+  }
+
+  function rectangleFromPoints(start: PdfPoint, end: PdfPoint): DraftRectangle {
+    return {
+      xRatio: Math.min(start.xRatio, end.xRatio),
+      yRatio: Math.min(start.yRatio, end.yRatio),
+      widthRatio: Math.abs(end.xRatio - start.xRatio),
+      heightRatio: Math.abs(end.yRatio - start.yRatio),
+    };
+  }
+
+  function resetInteraction() {
+    if (draftFrameRef.current !== undefined) {
+      cancelAnimationFrame(draftFrameRef.current);
+      draftFrameRef.current = undefined;
+    }
+    draftPointsRef.current = [];
+    rectangleStartRef.current = undefined;
+    setDraftPoints([]);
+    setDraftRectangle(undefined);
+  }
+
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (readOnly || tool !== 'draw') return;
+    if (readOnly || !['draw', 'highlight', 'whiteout'].includes(tool)) return;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDraftPoints([pointFromEvent(event)]);
+    const point = pointFromEvent(event);
+
+    if (tool === 'draw') {
+      draftPointsRef.current = [point];
+      setDraftPoints([point]);
+      return;
+    }
+
+    rectangleStartRef.current = point;
+    setDraftRectangle({ ...point, widthRatio: 0, heightRatio: 0 });
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (readOnly || tool !== 'draw' || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    setDraftPoints((points) => [...points, pointFromEvent(event)]);
+    if (readOnly || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    event.preventDefault();
+    const point = pointFromEvent(event);
+
+    if (tool === 'draw') {
+      appendDrawingPoint(point);
+      return;
+    }
+
+    if ((tool === 'highlight' || tool === 'whiteout') && rectangleStartRef.current) {
+      setDraftRectangle(rectangleFromPoints(rectangleStartRef.current, point));
+    }
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (readOnly || tool !== 'draw') return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (draftPoints.length > 1) {
-      void onAdd({ ...baseOperation(), type: 'drawing', points: draftPoints, width: strokeWidth, color });
+    if (readOnly || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    event.preventDefault();
+    const point = pointFromEvent(event);
+
+    if (tool === 'draw') {
+      appendDrawingPoint(point, true);
+      const points = draftPointsRef.current;
+      if (points.length > 1) {
+        void onAdd({ ...baseOperation(), type: 'drawing', points, width: strokeWidth, color });
+      }
+    } else if ((tool === 'highlight' || tool === 'whiteout') && rectangleStartRef.current) {
+      const rectangle = rectangleFromPoints(rectangleStartRef.current, point);
+      if (rectangle.widthRatio >= MIN_RECTANGLE_SIZE && rectangle.heightRatio >= MIN_RECTANGLE_SIZE) {
+        void onAdd({
+          ...baseOperation(),
+          type: 'rectangle',
+          purpose: tool === 'highlight' ? 'highlight' : 'whiteout',
+          ...rectangle,
+          color: tool === 'highlight' ? { r: 255, g: 225, b: 0 } : { r: 255, g: 255, b: 255 },
+          opacity: tool === 'highlight' ? 0.35 : 1,
+        });
+      }
     }
-    setDraftPoints([]);
+
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    resetInteraction();
+  }
+
+  function handlePointerCancel(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    resetInteraction();
   }
 
   async function addImage(file: File) {
@@ -279,37 +458,89 @@ function PdfPage({ pdf, pageIndex, edits, readOnly, tool, text, fontSize, color,
   }
 
   const overlayEdits = edits.filter((edit) => !['rotate', 'delete-page'].includes(edit.type));
+  const interacting = !readOnly && ['draw', 'highlight', 'whiteout'].includes(tool);
 
   return (
-    <div
-      className={`pdf-page-frame ${!readOnly && tool !== 'select' ? 'is-editable' : ''} ${tool === 'draw' ? 'is-drawing' : ''}`}
-      onClick={handleClick}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-    >
-      <canvas ref={canvasRef} className="pdf-page" />
-      <div className="pdf-overlay">
-        {overlayEdits.map((edit) => <PdfOverlay key={edit.id} edit={edit} />)}
-        {draftPoints.length > 1 && (
-          <svg className="pdf-overlay-drawing" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polyline points={draftPoints.map((point) => `${point.xRatio * 100},${point.yRatio * 100}`).join(' ')} fill="none" stroke={colorToCss(color)} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-          </svg>
+    <div className="pdf-page-block">
+      <div
+        className={`pdf-page-frame ${!readOnly && tool !== 'select' ? 'is-editable' : ''} ${interacting ? 'is-interacting' : ''}`}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+      >
+        <canvas ref={canvasRef} className="pdf-page" />
+        <div className="pdf-overlay">
+          {overlayEdits.map((edit) => <PdfOverlay key={edit.id} edit={edit} />)}
+          {draftPoints.length > 1 && (
+            <svg className="pdf-overlay-drawing" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polyline points={draftPoints.map((draftPoint) => `${draftPoint.xRatio * 100},${draftPoint.yRatio * 100}`).join(' ')} fill="none" stroke={colorToCss(color)} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+            </svg>
+          )}
+          {draftRectangle && (
+            <span
+              className={`pdf-draft-rectangle ${tool === 'highlight' ? 'highlight' : 'whiteout'}`}
+              style={{
+                left: `${draftRectangle.xRatio * 100}%`,
+                top: `${draftRectangle.yRatio * 100}%`,
+                width: `${draftRectangle.widthRatio * 100}%`,
+                height: `${draftRectangle.heightRatio * 100}%`,
+              }}
+            />
+          )}
+        </div>
+
+        {rotation !== 0 && <span className="pdf-rotation-badge">Rotação {((rotation % 360) + 360) % 360}° na exportação</span>}
+        <span className="pdf-page-label">Página {pageIndex + 1}</span>
+
+        <div className="pdf-page-actions" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+          <button className="pdf-page-action" disabled={ocrBusy || ocrDisabled} title="Executar OCR nesta página" onClick={() => void onOcr()}><ScanText size={15} /></button>
+          {!readOnly && (
+            <>
+              <button className="pdf-page-action" title="Girar à esquerda" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: -90 })}><RotateCcw size={15} /></button>
+              <button className="pdf-page-action" title="Girar à direita" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: 90 })}><RotateCw size={15} /></button>
+              <label className="pdf-page-action" title="Adicionar imagem"><ImagePlus size={15} /><input hidden type="file" accept="image/png,image/jpeg" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImage(file); event.currentTarget.value = ''; }} /></label>
+              <button className="pdf-page-action" disabled={!canDelete} title={canDelete ? 'Excluir página' : 'O PDF precisa manter uma página'} onClick={() => { if (canDelete) void onAdd({ ...baseOperation(), type: 'delete-page' }); }}><Trash2 size={15} /></button>
+            </>
+          )}
+        </div>
+
+        {ocrBusy && (
+          <div className="pdf-ocr-progress" aria-live="polite">
+            <ScanText size={18} />
+            <strong>{Math.round(ocrProgress * 100)}%</strong>
+            <span>{ocrStatus || 'Executando OCR'}</span>
+          </div>
         )}
       </div>
 
-      {rotation !== 0 && <span className="pdf-rotation-badge">Rotação {((rotation % 360) + 360) % 360}° na exportação</span>}
-      <span className="pdf-page-label">Página {pageIndex + 1}</span>
-
-      {!readOnly && (
-        <div className="pdf-page-actions" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-          <button className="pdf-page-action" title="Girar à esquerda" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: -90 })}><RotateCcw size={15} /></button>
-          <button className="pdf-page-action" title="Girar à direita" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: 90 })}><RotateCw size={15} /></button>
-          <label className="pdf-page-action" title="Adicionar imagem"><ImagePlus size={15} /><input hidden type="file" accept="image/png,image/jpeg" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImage(file); event.currentTarget.value = ''; }} /></label>
-          <button className="pdf-page-action" disabled={!canDelete} title={canDelete ? 'Excluir página' : 'O PDF precisa manter uma página'} onClick={() => { if (canDelete) void onAdd({ ...baseOperation(), type: 'delete-page' }); }}><Trash2 size={15} /></button>
-        </div>
-      )}
+      {ocrError && <div className="pdf-ocr-error">OCR: {ocrError}</div>}
+      {ocrResult && <PdfOcrPanel result={ocrResult} />}
     </div>
+  );
+}
+
+function PdfOcrPanel({ result }: { result: PdfOcrResult }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyText() {
+    await navigator.clipboard.writeText(result.text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <details className="pdf-ocr-result">
+      <summary>
+        <span><ScanText size={15} />OCR · confiança {Math.round(result.confidence)}% · {result.language.toUpperCase()}</span>
+        <span>{result.text ? `${result.text.length} caracteres` : 'sem texto detectado'}</span>
+      </summary>
+      <div className="pdf-ocr-result-body">
+        <button className="pdf-ocr-copy" disabled={!result.text} onClick={() => void copyText()}><Copy size={14} />{copied ? 'Copiado' : 'Copiar texto'}</button>
+        <pre>{result.text || 'Nenhum texto foi reconhecido nesta página.'}</pre>
+      </div>
+    </details>
   );
 }
 
