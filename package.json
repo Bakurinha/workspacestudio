@@ -1,9 +1,9 @@
 {
   "name": "workspace-studio",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Workspace documental local-first com planilhas, regras, histórico e visualizadores.",
+  "description": "Workspace documental local-first com planilhas, regras, histórico e edição básica de PDF.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
