@@ -126,7 +126,9 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
         setOcrProgress(Math.max(0, Math.min(1, progress)));
         setOcrStatus(status);
       });
-      const updated = await persistPdfOcrResult(document.id, result);
+      // Passamos o documento já aberto para preservar a mesma referência de Blob.
+      // Assim salvar o OCR não desmonta e recria todo o PDF.js na interface.
+      const updated = await persistPdfOcrResult(document, result);
       onDocumentChange(updated);
     } catch (reason) {
       setOcrError({
@@ -157,7 +159,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             <option value="por-eng">Português + Inglês</option>
           </select>
         </label>
-        <span>Use o botão OCR em cada página. O primeiro uso pode baixar a engine e o modelo de idioma; a imagem da página é processada no navegador.</span>
+        <span>Passe o cursor sobre a página para mostrar as ações e executar OCR. O primeiro uso pode baixar a engine e o modelo de idioma; a imagem da página é processada no navegador.</span>
       </div>
 
       {!readOnly && (
