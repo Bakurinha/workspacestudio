@@ -22,6 +22,7 @@ docs/releases/0.2.0.md
 docs/releases/0.3.0.md
 docs/releases/0.3.1.md
 docs/releases/0.3.2.md
+docs/releases/0.4.0.md
 examples/README.md
 examples/inventario-exemplo.csv
 index.html
@@ -46,6 +47,7 @@ src/modules/rules/ruleEngine.ts
 src/modules/spreadsheet/SpreadsheetWorkspace.tsx
 src/modules/spreadsheet/spreadsheetExport.ts
 src/modules/spreadsheet/spreadsheetParser.ts
+src/modules/spreadsheet/spreadsheetSelection.css
 src/modules/viewers/DocxViewer.tsx
 src/modules/viewers/PdfViewer.tsx
 src/modules/viewers/TextViewer.tsx
