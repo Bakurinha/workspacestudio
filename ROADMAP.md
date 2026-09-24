@@ -35,7 +35,7 @@ O roadmap é orientativo. Funcionalidades somente são consideradas entregues qu
 - Persistência do resultado OCR no IndexedDB.
 - Estabilização do layout PDF e da persistência OCR.
 
-## 0.4.0 — faixa de regras + OCR editável — entregue
+## 0.4.0 — faixa de regras + OCR textual — entregue
 
 - Seleção vertical de faixa diretamente na matriz da planilha.
 - Clique + `Shift+clique` para definir linha inicial/final na mesma coluna.
@@ -48,7 +48,19 @@ O roadmap é orientativo. Funcionalidades somente são consideradas entregues qu
 - Texto OCR editável e correções persistidas no IndexedDB.
 - Caminhos explícitos da engine/modelos do Tesseract para hospedagem estática.
 
-Próximas evoluções do OCR/PDF: coordenadas por palavra, camada textual pesquisável, seleção/movimentação de objetos, redimensionamento, reordenação de páginas, formulários e edição semântica avançada.
+## 0.4.1 — edição visual por OCR — entregue
+
+- Solicitação explícita de `blocks` ao Tesseract.js.
+- Coordenadas por palavra normalizadas em relação à página.
+- Camada interativa de palavras reconhecidas sobre o PDF.
+- Seleção de uma palavra diretamente na página.
+- Correção visual por operação `ocr-replace`.
+- Cobertura automática da palavra anterior + novo texto no mesmo local.
+- Sincronização entre correção visual e transcrição OCR persistida.
+- Exportação da substituição junto das demais operações PDF.
+- Teste de normalização das bounding boxes OCR.
+
+Próximas evoluções do OCR/PDF: camada textual pesquisável, seleção/movimentação de objetos adicionados, redimensionamento, reordenação de páginas, formulários e edição semântica avançada do content stream.
 
 ## 0.5.0 — planilha avançada
 
