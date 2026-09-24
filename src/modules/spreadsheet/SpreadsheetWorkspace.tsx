@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import type { CellChange, CellValue, DocumentRecord } from '../../types/document';
+import type { CellChange, CellValue, DocumentRecord, SpreadsheetSelection } from '../../types/document';
 
 interface SpreadsheetWorkspaceProps {
   document: DocumentRecord;
   readOnly: boolean;
+  selection?: SpreadsheetSelection;
+  onSelectionChange: (selection?: SpreadsheetSelection) => void;
   onCellChange: (change: CellChange) => Promise<void> | void;
   onSheetChange: (index: number) => void;
   onAddRow: () => Promise<void> | void;
@@ -45,7 +47,23 @@ function EditableCell({ value, onCommit }: { value: CellValue; onCommit: (nextVa
   );
 }
 
-export function SpreadsheetWorkspace({ document, readOnly, onCellChange, onSheetChange, onAddRow, onAddColumn }: SpreadsheetWorkspaceProps) {
+function cellIsSelected(selection: SpreadsheetSelection | undefined, sheetIndex: number, rowIndex: number, columnIndex: number) {
+  if (!selection || selection.sheetIndex !== sheetIndex || selection.columnIndex !== columnIndex) return false;
+  const start = Math.min(selection.startRowIndex, selection.endRowIndex);
+  const end = Math.max(selection.startRowIndex, selection.endRowIndex);
+  return rowIndex >= start && rowIndex <= end;
+}
+
+export function SpreadsheetWorkspace({
+  document,
+  readOnly,
+  selection,
+  onSelectionChange,
+  onCellChange,
+  onSheetChange,
+  onAddRow,
+  onAddColumn,
+}: SpreadsheetWorkspaceProps) {
   const content = document.content;
   const [page, setPage] = useState(0);
   if (!content) return <div className="empty-state">Planilha sem conteúdo interpretável.</div>;
@@ -57,11 +75,44 @@ export function SpreadsheetWorkspace({ document, readOnly, onCellChange, onSheet
   const safePage = Math.min(page, pageCount - 1);
   const rows = useMemo(() => sheet.rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE), [sheet.rows, safePage]);
 
+  function selectCell(rowIndex: number, columnIndex: number, extend: boolean) {
+    if (readOnly) return;
+
+    if (extend && selection?.sheetIndex === content.activeSheetIndex && selection.columnIndex === columnIndex) {
+      onSelectionChange({
+        ...selection,
+        endRowIndex: rowIndex,
+      });
+      return;
+    }
+
+    onSelectionChange({
+      sheetIndex: content.activeSheetIndex,
+      columnIndex,
+      startRowIndex: rowIndex,
+      endRowIndex: rowIndex,
+    });
+  }
+
+  function selectColumn(columnIndex: number) {
+    if (readOnly || sheet.rows.length === 0) return;
+    onSelectionChange({
+      sheetIndex: content.activeSheetIndex,
+      columnIndex,
+      startRowIndex: 0,
+      endRowIndex: sheet.rows.length - 1,
+    });
+  }
+
+  const selectionSummary = selection?.sheetIndex === content.activeSheetIndex
+    ? `${sheet.headers[selection.columnIndex] ?? `Coluna ${selection.columnIndex + 1}`} · linhas ${Math.min(selection.startRowIndex, selection.endRowIndex) + 1}–${Math.max(selection.startRowIndex, selection.endRowIndex) + 1}`
+    : undefined;
+
   return (
     <div className="spreadsheet-workspace">
       <div className="sheet-tabs" role="tablist">
         {content.sheets.map((item, index) => (
-          <button key={`${item.name}-${index}`} className={index === content.activeSheetIndex ? 'active' : ''} onClick={() => { setPage(0); onSheetChange(index); }}>
+          <button key={`${item.name}-${index}`} className={index === content.activeSheetIndex ? 'active' : ''} onClick={() => { setPage(0); onSelectionChange(undefined); onSheetChange(index); }}>
             {item.name}
           </button>
         ))}
@@ -71,12 +122,29 @@ export function SpreadsheetWorkspace({ document, readOnly, onCellChange, onSheet
         <div className="grid-actions">
           <button className="button small" onClick={() => void onAddRow()}><Plus size={15} />Registro</button>
           <button className="button small" onClick={() => void onAddColumn()}><Plus size={15} />Coluna</button>
+          <span className="grid-selection-hint">
+            {selectionSummary ? `Seleção: ${selectionSummary}` : 'Selecione uma célula; Shift+clique em outra da mesma coluna para marcar a faixa.'}
+          </span>
         </div>
       )}
 
       <div className="grid-scroll">
         <table className="data-grid">
-          <thead><tr><th className="row-number">#</th>{sheet.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
+          <thead>
+            <tr>
+              <th className="row-number">#</th>
+              {sheet.headers.map((header, columnIndex) => (
+                <th
+                  key={header}
+                  className={selection?.sheetIndex === content.activeSheetIndex && selection.columnIndex === columnIndex ? 'range-column' : ''}
+                  onClick={() => selectColumn(columnIndex)}
+                  title={readOnly ? undefined : 'Clique para selecionar toda a coluna de dados'}
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {rows.map((row, visibleRowIndex) => {
               const rowIndex = safePage * PAGE_SIZE + visibleRowIndex;
@@ -85,8 +153,13 @@ export function SpreadsheetWorkspace({ document, readOnly, onCellChange, onSheet
                   <th className="row-number">{rowIndex + 1}</th>
                   {sheet.headers.map((_, columnIndex) => {
                     const value = row[columnIndex] ?? null;
+                    const selected = cellIsSelected(selection, content.activeSheetIndex, rowIndex, columnIndex);
                     return (
-                      <td key={columnIndex}>
+                      <td
+                        key={columnIndex}
+                        className={selected ? 'range-selected' : ''}
+                        onMouseDown={(event) => selectCell(rowIndex, columnIndex, event.shiftKey)}
+                      >
                         {readOnly ? <span className="cell-read">{valueForInput(value)}</span> : (
                           <EditableCell
                             value={value}
