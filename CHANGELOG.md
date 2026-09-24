@@ -4,6 +4,40 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.3.0] - 2026-09-24
+
+### Adicionado
+- OCR local por página em PDFs usando Tesseract.js 7.
+- Seleção de idioma para OCR: Português, Inglês e Português + Inglês.
+- Renderização em canvas de maior resolução antes do OCR para melhorar reconhecimento.
+- Progresso visual do OCR por página.
+- Persistência do texto OCR, idioma, confiança estimada e data no IndexedDB junto ao documento.
+- Painel de resultado OCR com texto copiável.
+- Teste unitário para o mapeamento de idiomas do OCR.
+
+### Corrigido
+- Ferramenta **Desenhar** deixou de criar atualização React a cada movimento do ponteiro, reduzindo drasticamente risco de travamento em traços longos.
+- Pontos de desenho agora são amostrados e compactados quando necessário para limitar crescimento excessivo da operação.
+- Renderização do rascunho de desenho passa a ser limitada por `requestAnimationFrame`.
+- Ferramentas **Cobrir** e **Destacar** deixaram de criar retângulos de tamanho fixo e agora usam seleção exata por clique + arraste + soltura.
+- Adicionada prévia visual da área de Cobrir/Destacar durante o arraste.
+- Interações por ponteiro passaram a tratar cancelamento e captura de ponteiro de forma explícita.
+
+### Alterado
+- OCR fica disponível também no modo Leitura, sem exigir habilitar a edição do documento.
+- README passa a documentar o fluxo PDF.js → canvas → Tesseract.js → IndexedDB.
+- Versão do projeto atualizada para `0.3.0`.
+
+### Privacidade
+- O PDF não é enviado pelo código da aplicação para serviço de OCR.
+- Tesseract.js processa o canvas no navegador por Web Worker.
+- Engine e modelos de idioma podem ser baixados pela biblioteca no primeiro uso; isso é informado explicitamente na interface e documentação.
+
+### Limitações conhecidas
+- OCR é executado por página e ainda não cria uma camada textual pesquisável dentro do PDF exportado.
+- Qualidade do OCR depende da resolução, orientação, contraste e qualidade da digitalização.
+- Edição semântica do texto original do PDF continua fora do escopo desta versão.
+
 ## [0.2.0] - 2026-09-24
 
 ### Adicionado
