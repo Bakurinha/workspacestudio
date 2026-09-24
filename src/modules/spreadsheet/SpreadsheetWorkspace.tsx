@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { CellChange, CellValue, DocumentRecord, SpreadsheetSelection } from '../../types/document';
+import './spreadsheetSelection.css';
 
 interface SpreadsheetWorkspaceProps {
   document: DocumentRecord;
