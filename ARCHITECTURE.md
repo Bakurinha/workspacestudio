@@ -1,6 +1,6 @@
 # Arquitetura
 
-**Versão:** 0.1.0
+**Versão:** 0.3.0
 
 ## Objetivo
 
@@ -13,7 +13,7 @@ React UI
   ↓
 Services / Use Cases
   ↓
-Domain / Rules / Parsers
+Domain / Rules / Parsers / Exporters
   ↓
 Repositories
   ↓
@@ -26,7 +26,7 @@ Responsável por interação e apresentação. Não deve acessar IndexedDB diret
 
 ### Services
 
-Coordenam casos de uso, como importação, histórico, undo/redo e futuras sincronizações.
+Coordenam casos de uso, como importação, histórico, undo/redo, edição PDF, OCR e futuras sincronizações.
 
 ### Domain / Modules
 
@@ -35,7 +35,9 @@ Contém comportamento específico:
 - planilhas;
 - motor de regras;
 - visualizadores;
-- futuros módulos PDF/DOCX editáveis.
+- editor/exportador de PDF;
+- visualização DOCX;
+- futuras camadas editáveis de DOCX e outros formatos.
 
 ### Repositories
 
@@ -47,21 +49,85 @@ Encapsulam persistência e impedem acoplamento da UI com IndexedDB.
 DocumentRecord
 ├── metadados
 ├── hash
-├── Blob original
+├── Blob original imutável
 ├── conteúdo interno editável (quando suportado)
+├── operações PDF
+├── resultados OCR por página
 ├── metadados detectados
-└── posição do histórico
+└── posições de histórico/cursores
 ```
 
-## Histórico
+Campos opcionais permitem que documentos importados por versões anteriores continuem válidos.
 
-A v0.1.0 suporta ações:
+## Histórico de planilha
+
+Ações atualmente suportadas:
 
 - mudanças de células;
 - adicionar registro;
 - adicionar coluna.
 
 Cada ação recebe sequência crescente. Ao editar depois de um undo, o ramo de redo é descartado.
+
+## Edição PDF
+
+A edição de PDF não altera o `originalBlob`.
+
+```text
+originalBlob
+   ↓
+PDF.js → visualização
+   ↓
+PdfEditOperation[] → IndexedDB
+   ↓
+pdf-lib → exportação
+   ↓
+nova cópia PDF
+```
+
+Operações incluem texto, retângulo, desenho, imagem, rotação e exclusão de página.
+
+O desenho livre usa amostragem de pontos e `requestAnimationFrame` para impedir que eventos de ponteiro gerem milhares de atualizações React por segundo.
+
+As ferramentas de retângulo usam coordenadas normalizadas (`0..1`) e seleção por arraste, mantendo o comportamento independente da resolução/tamanho exibido da página.
+
+## OCR de PDF
+
+O OCR é implementado como processamento de imagem no navegador.
+
+```text
+PDF original
+   ↓
+PDF.js
+   ↓
+canvas temporário em resolução ampliada
+   ↓
+Tesseract.js / Web Worker
+   ↓
+PdfOcrResult
+   ↓
+Service
+   ↓
+Repository
+   ↓
+IndexedDB
+```
+
+O Tesseract.js não processa o PDF diretamente. O serviço recebe uma `PDFPageProxy`, renderiza um canvas temporário e envia somente esse objeto local para o worker da biblioteca.
+
+O código da aplicação não envia o documento para um serviço remoto de OCR. A engine e os modelos de idioma podem ser baixados pela biblioteca durante a inicialização do worker.
+
+Resultados OCR armazenados:
+
+```text
+pageIndex
+language
+text
+confidence
+recognizedAt
+```
+
+O OCR não altera o arquivo original e, na v0.3.0, também não altera o PDF exportado. Ele cria uma representação textual auxiliar para leitura/cópia e futuras funções de busca/camada pesquisável.
 
 ## Motor de regras
 
@@ -79,7 +145,7 @@ Isso permite futuramente aplicar a mesma lógica em dados vindos de:
 
 Banco: `workspace-studio`.
 
-Stores iniciais:
+Stores atuais:
 
 ```text
 documents
@@ -88,7 +154,7 @@ rules
 history
 ```
 
-Toda mudança futura de schema deve criar uma nova versão Dexie e migration explícita.
+A adição de campos opcionais dentro de `DocumentRecord`, como `pdfEdits` e `pdfOcr`, não altera os indexes/object stores do Dexie. Alterações futuras em schema/indexes deverão criar uma nova versão Dexie e migration explícita.
 
 ## PWA
 
