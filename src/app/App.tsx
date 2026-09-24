@@ -31,7 +31,7 @@ import { commitAddColumn, commitAddRow, commitSpreadsheetAction, listHistory, re
 import type { ColumnRule, DocumentRecord, HistoryAction } from '../types/document';
 import { downloadBlob } from '../utils/download';
 
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.3.0';
 
 export function App() {
   const { settings, updateSettings } = useAppSettings();
