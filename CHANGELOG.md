@@ -4,6 +4,23 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.3.2] - 2026-09-24
+
+### Corrigido
+- Corrigido o colapso visual das páginas PDF que reduzia o canvas a poucos pixels e deixava praticamente apenas os selos “Página N” visíveis.
+- Removido `width: min-content` do bloco de página e `width: fit-content` do frame, pois o PDF.js define o tamanho do canvas de forma assíncrona e o navegador podia calcular uma largura mínima incorreta antes do primeiro render.
+- O visualizador PDF passou a usar coluna flexível com largura máxima responsiva e canvas ocupando 100% do frame.
+- O editor PDF deixou de depender de um grid com linhas rígidas e agora usa layout flexível, evitando espaço vazio ou dimensionamento inconsistente quando a barra de edição não está presente no modo Leitura.
+
+### Alterado
+- Páginas PDF usam largura máxima de 940 px no desktop, 840 px em telas intermediárias e 100% no mobile.
+- Adicionado comentário técnico no CSS explicando a causa do bug para evitar reintrodução futura de `min-content` no dimensionamento das páginas.
+- Versão do projeto atualizada para `0.3.2`.
+
+### Documentação
+- README atualizado com o novo comportamento responsivo do visualizador PDF.
+- Adicionada nota de release `docs/releases/0.3.2.md`.
+
 ## [0.3.1] - 2026-09-24
 
 ### Corrigido
