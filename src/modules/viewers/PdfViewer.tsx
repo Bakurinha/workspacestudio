@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Check,
   Copy,
   Eraser,
   Highlighter,
@@ -14,6 +15,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  X,
 } from 'lucide-react';
 import { GlobalWorkerOptions, getDocument, type PDFDocumentProxy } from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
@@ -22,9 +24,17 @@ import {
   persistPdfOcrResult,
   recognizePdfPage,
   updatePdfOcrText,
+  updatePdfOcrWord,
   type PdfOcrLanguageMode,
 } from '../../services/pdfOcrService';
-import type { DocumentRecord, PdfColor, PdfEditOperation, PdfOcrResult, PdfPoint } from '../../types/document';
+import type {
+  DocumentRecord,
+  PdfColor,
+  PdfEditOperation,
+  PdfOcrResult,
+  PdfOcrWord,
+  PdfPoint,
+} from '../../types/document';
 import { activePdfEdits } from './pdfExport';
 import './pdfEditor.css';
 
@@ -98,8 +108,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
   }, [readOnly]);
 
   async function addOperation(operation: PdfEditOperation) {
-    const updated = await commitPdfEdit(document, operation);
-    onDocumentChange(updated);
+    onDocumentChange(await commitPdfEdit(document, operation));
   }
 
   async function handleUndo() {
@@ -128,9 +137,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
         setOcrProgress(Math.max(0, Math.min(1, progress)));
         setOcrStatus(status);
       });
-      // Mantemos a mesma referência do Blob para não reinicializar o PDF.js.
-      const updated = await persistPdfOcrResult(document, result);
-      onDocumentChange(updated);
+      onDocumentChange(await persistPdfOcrResult(document, result));
     } catch (reason) {
       setOcrError({
         pageIndex,
@@ -144,8 +151,32 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
   }
 
   async function handleOcrTextSave(pageIndex: number, nextText: string) {
-    const updated = await updatePdfOcrText(document, pageIndex, nextText);
-    onDocumentChange(updated);
+    onDocumentChange(await updatePdfOcrText(document, pageIndex, nextText));
+  }
+
+  async function handleOcrWordApply(pageIndex: number, wordIndex: number, nextText: string) {
+    if (readOnly) throw new Error('Ative o modo Editar para substituir texto visualmente no PDF.');
+    const result = document.pdfOcr?.find((item) => item.pageIndex === pageIndex);
+    const word = result?.words?.[wordIndex];
+    if (!word) throw new Error('Palavra OCR não encontrada. Execute o OCR novamente nesta página.');
+
+    const visualEdit: PdfEditOperation = {
+      id: crypto.randomUUID(),
+      type: 'ocr-replace',
+      pageIndex,
+      createdAt: new Date().toISOString(),
+      xRatio: Math.max(0, word.xRatio - 0.0015),
+      yRatio: Math.max(0, word.yRatio - 0.0015),
+      widthRatio: Math.min(1 - word.xRatio, word.widthRatio + 0.003),
+      heightRatio: Math.min(1 - word.yRatio, word.heightRatio + 0.003),
+      text: nextText,
+      color: { r: 20, g: 20, b: 20 },
+    };
+
+    // Primeiro registramos a alteração visual no histórico do PDF e só então
+    // sincronizamos a representação textual OCR usando o documento já atualizado.
+    const withVisualEdit = await commitPdfEdit(document, visualEdit);
+    onDocumentChange(await updatePdfOcrWord(withVisualEdit, pageIndex, wordIndex, nextText));
   }
 
   if (error) return <div className="error-panel">{error}</div>;
@@ -165,7 +196,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             <option value="por-eng">Português + Inglês</option>
           </select>
         </label>
-        <span>Use “Executar OCR” abaixo da página. No primeiro uso a engine e o idioma podem ser baixados; a página é reconhecida no navegador.</span>
+        <span>Execute o OCR abaixo da página. Depois, no modo Editar, use “Editar texto na página” para clicar nas palavras reconhecidas.</span>
       </div>
 
       {!readOnly && (
@@ -204,7 +235,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
 
       {!readOnly && (
         <div className="pdf-editor-hint">
-          Texto: clique para inserir. Destacar/Cobrir: clique, arraste e solte para escolher a área exata. Desenhar: mantenha pressionado e trace normalmente.
+          Texto: clique para inserir. Destacar/Cobrir: arraste a área. Desenhar: mantenha pressionado. OCR: execute e use “Editar texto na página”.
         </div>
       )}
 
@@ -231,6 +262,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             onAdd={addOperation}
             onOcr={() => handleOcrPage(pageIndex)}
             onOcrTextSave={(nextText) => handleOcrTextSave(pageIndex, nextText)}
+            onOcrWordApply={(wordIndex, nextText) => handleOcrWordApply(pageIndex, wordIndex, nextText)}
           />
         ))}
       </div>
@@ -258,6 +290,7 @@ interface PdfPageProps {
   onAdd: (operation: PdfEditOperation) => Promise<void>;
   onOcr: () => Promise<void>;
   onOcrTextSave: (text: string) => Promise<void>;
+  onOcrWordApply: (wordIndex: number, text: string) => Promise<void>;
 }
 
 function PdfPage({
@@ -280,6 +313,7 @@ function PdfPage({
   onAdd,
   onOcr,
   onOcrTextSave,
+  onOcrWordApply,
 }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const draftPointsRef = useRef<PdfPoint[]>([]);
@@ -287,10 +321,17 @@ function PdfPage({
   const rectangleStartRef = useRef<PdfPoint | undefined>(undefined);
   const [draftPoints, setDraftPoints] = useState<PdfPoint[]>([]);
   const [draftRectangle, setDraftRectangle] = useState<DraftRectangle>();
+  const [ocrEditMode, setOcrEditMode] = useState(false);
+  const [selectedWordIndex, setSelectedWordIndex] = useState<number>();
+  const [wordDraft, setWordDraft] = useState('');
+  const [wordSaving, setWordSaving] = useState(false);
+  const [wordError, setWordError] = useState<string>();
 
   const rotation = edits
     .filter((edit): edit is Extract<PdfEditOperation, { type: 'rotate' }> => edit.type === 'rotate')
     .reduce((sum, edit) => sum + edit.degrees, 0);
+
+  const selectedWord = selectedWordIndex === undefined ? undefined : ocrResult?.words?.[selectedWordIndex];
 
   useEffect(() => {
     let cancelled = false;
@@ -323,6 +364,14 @@ function PdfPage({
     if (draftFrameRef.current !== undefined) cancelAnimationFrame(draftFrameRef.current);
   }, []);
 
+  useEffect(() => {
+    if (readOnly) {
+      setOcrEditMode(false);
+      setSelectedWordIndex(undefined);
+      setWordDraft('');
+    }
+  }, [readOnly]);
+
   function pointFromEvent(event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>): PdfPoint {
     const rect = event.currentTarget.getBoundingClientRect();
     return {
@@ -336,7 +385,7 @@ function PdfPage({
   }
 
   function handleClick(event: React.MouseEvent<HTMLDivElement>) {
-    if (readOnly || tool !== 'text' || !text.trim()) return;
+    if (ocrEditMode || readOnly || tool !== 'text' || !text.trim()) return;
     const point = pointFromEvent(event);
     void onAdd({ ...baseOperation(), type: 'text', ...point, text, size: fontSize, color });
   }
@@ -358,10 +407,7 @@ function PdfPage({
     }
 
     let next = [...points, point];
-    if (next.length > MAX_DRAWING_POINTS) {
-      // Reduz pontos antigos de forma previsível para evitar milhares de renders/objetos.
-      next = next.filter((_, index) => index % 2 === 0);
-    }
+    if (next.length > MAX_DRAWING_POINTS) next = next.filter((_, index) => index % 2 === 0);
     draftPointsRef.current = next;
     scheduleDraftRender();
   }
@@ -387,7 +433,7 @@ function PdfPage({
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (readOnly || !['draw', 'highlight', 'whiteout'].includes(tool)) return;
+    if (ocrEditMode || readOnly || !['draw', 'highlight', 'whiteout'].includes(tool)) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointFromEvent(event);
@@ -425,9 +471,7 @@ function PdfPage({
     if (tool === 'draw') {
       appendDrawingPoint(point, true);
       const points = draftPointsRef.current;
-      if (points.length > 1) {
-        void onAdd({ ...baseOperation(), type: 'drawing', points, width: strokeWidth, color });
-      }
+      if (points.length > 1) void onAdd({ ...baseOperation(), type: 'drawing', points, width: strokeWidth, color });
     } else if ((tool === 'highlight' || tool === 'whiteout') && rectangleStartRef.current) {
       const rectangle = rectangleFromPoints(rectangleStartRef.current, point);
       if (rectangle.widthRatio >= MIN_RECTANGLE_SIZE && rectangle.heightRatio >= MIN_RECTANGLE_SIZE) {
@@ -447,9 +491,7 @@ function PdfPage({
   }
 
   function handlePointerCancel(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     resetInteraction();
   }
 
@@ -467,13 +509,35 @@ function PdfPage({
     });
   }
 
+  function selectOcrWord(index: number, word: PdfOcrWord) {
+    setSelectedWordIndex(index);
+    setWordDraft(word.text);
+    setWordError(undefined);
+  }
+
+  async function applySelectedWord() {
+    if (selectedWordIndex === undefined || !wordDraft.trim()) return;
+    setWordSaving(true);
+    setWordError(undefined);
+    try {
+      await onOcrWordApply(selectedWordIndex, wordDraft.trim());
+      setSelectedWordIndex(undefined);
+      setWordDraft('');
+    } catch (reason) {
+      setWordError(reason instanceof Error ? reason.message : 'Não foi possível aplicar a correção OCR.');
+    } finally {
+      setWordSaving(false);
+    }
+  }
+
   const overlayEdits = edits.filter((edit) => !['rotate', 'delete-page'].includes(edit.type));
-  const interacting = !readOnly && ['draw', 'highlight', 'whiteout'].includes(tool);
+  const interacting = !readOnly && !ocrEditMode && ['draw', 'highlight', 'whiteout'].includes(tool);
+  const hasMappedWords = (ocrResult?.words?.length ?? 0) > 0;
 
   return (
     <div className="pdf-page-block">
       <div
-        className={`pdf-page-frame ${!readOnly && tool !== 'select' ? 'is-editable' : ''} ${interacting ? 'is-interacting' : ''}`}
+        className={`pdf-page-frame ${!readOnly && tool !== 'select' && !ocrEditMode ? 'is-editable' : ''} ${interacting ? 'is-interacting' : ''} ${ocrEditMode ? 'ocr-editing' : ''}`}
         onClick={handleClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -481,11 +545,12 @@ function PdfPage({
         onPointerCancel={handlePointerCancel}
       >
         <canvas ref={canvasRef} className="pdf-page" />
+
         <div className="pdf-overlay">
           {overlayEdits.map((edit) => <PdfOverlay key={edit.id} edit={edit} />)}
           {draftPoints.length > 1 && (
             <svg className="pdf-overlay-drawing" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polyline points={draftPoints.map((draftPoint) => `${draftPoint.xRatio * 100},${draftPoint.yRatio * 100}`).join(' ')} fill="none" stroke={colorToCss(color)} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+              <polyline points={draftPoints.map((point) => `${point.xRatio * 100},${point.yRatio * 100}`).join(' ')} fill="none" stroke={colorToCss(color)} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
             </svg>
           )}
           {draftRectangle && (
@@ -501,10 +566,29 @@ function PdfPage({
           )}
         </div>
 
+        {ocrEditMode && ocrResult?.words && (
+          <div className="pdf-ocr-word-layer" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+            {ocrResult.words.map((word, index) => (
+              <button
+                key={`${word.lineIndex}-${index}-${word.text}`}
+                className={`pdf-ocr-word ${selectedWordIndex === index ? 'active' : ''}`}
+                style={{
+                  left: `${word.xRatio * 100}%`,
+                  top: `${word.yRatio * 100}%`,
+                  width: `${word.widthRatio * 100}%`,
+                  height: `${word.heightRatio * 100}%`,
+                }}
+                title={`${word.text} · confiança ${Math.round(word.confidence)}%`}
+                onClick={() => selectOcrWord(index, word)}
+              />
+            ))}
+          </div>
+        )}
+
         {rotation !== 0 && <span className="pdf-rotation-badge">Rotação {((rotation % 360) + 360) % 360}° na exportação</span>}
         <span className="pdf-page-label">Página {pageIndex + 1}</span>
 
-        {!readOnly && (
+        {!readOnly && !ocrEditMode && (
           <div className="pdf-page-actions" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             <button className="pdf-page-action" title="Girar à esquerda" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: -90 })}><RotateCcw size={15} /></button>
             <button className="pdf-page-action" title="Girar à direita" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: 90 })}><RotateCw size={15} /></button>
@@ -523,12 +607,63 @@ function PdfPage({
       </div>
 
       <div className="pdf-page-ocr-row">
-        <button className="pdf-ocr-run" disabled={ocrBusy || ocrDisabled} onClick={() => void onOcr()}>
-          <ScanText size={15} />
-          {ocrBusy ? `OCR ${Math.round(ocrProgress * 100)}%` : ocrResult ? 'Executar OCR novamente' : 'Executar OCR nesta página'}
-        </button>
-        <span>{ocrResult ? `Texto reconhecido: ${ocrResult.text.length} caracteres` : 'O OCR cria uma camada textual editável abaixo da página.'}</span>
+        <div className="pdf-ocr-page-buttons">
+          <button className="pdf-ocr-run" disabled={ocrBusy || ocrDisabled} onClick={() => void onOcr()}>
+            <ScanText size={15} />
+            {ocrBusy ? `OCR ${Math.round(ocrProgress * 100)}%` : ocrResult ? 'Executar OCR novamente' : 'Executar OCR nesta página'}
+          </button>
+          {!readOnly && hasMappedWords && (
+            <button
+              className={`pdf-ocr-run ${ocrEditMode ? 'active' : ''}`}
+              onClick={() => {
+                setOcrEditMode((value) => !value);
+                setSelectedWordIndex(undefined);
+                setWordDraft('');
+              }}
+            >
+              {ocrEditMode ? <X size={15} /> : <Type size={15} />}
+              {ocrEditMode ? 'Sair da edição OCR' : 'Editar texto na página'}
+            </button>
+          )}
+        </div>
+        <span>
+          {ocrResult
+            ? hasMappedWords
+              ? `${ocrResult.words?.length ?? 0} palavras mapeadas · ${ocrResult.text.length} caracteres`
+              : 'OCR antigo sem coordenadas. Execute novamente para habilitar edição direta.'
+            : 'O OCR reconhece texto e mapeia cada palavra sobre a página.'}
+        </span>
       </div>
+
+      {ocrEditMode && (
+        <div className="pdf-ocr-edit-help">
+          Clique numa palavra destacada na página, altere o texto abaixo e aplique. A correção cria uma cobertura + novo texto no PDF sem alterar o original.
+        </div>
+      )}
+
+      {ocrEditMode && selectedWord && selectedWordIndex !== undefined && (
+        <div className="pdf-ocr-word-editor">
+          <div>
+            <span className="eyebrow">Palavra selecionada</span>
+            <strong>{selectedWord.text}</strong>
+          </div>
+          <input
+            autoFocus
+            value={wordDraft}
+            onChange={(event) => setWordDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void applySelectedWord();
+              if (event.key === 'Escape') setSelectedWordIndex(undefined);
+            }}
+            aria-label="Novo texto da palavra OCR"
+          />
+          <button className="button primary small" disabled={wordSaving || !wordDraft.trim()} onClick={() => void applySelectedWord()}>
+            <Check size={15} />{wordSaving ? 'Aplicando...' : 'Aplicar no PDF'}
+          </button>
+          <button className="button small" onClick={() => setSelectedWordIndex(undefined)}><X size={15} />Cancelar</button>
+          {wordError && <span className="pdf-ocr-inline-error">{wordError}</span>}
+        </div>
+      )}
 
       {ocrError && <div className="pdf-ocr-error">OCR: {ocrError}</div>}
       {ocrResult && <PdfOcrPanel result={ocrResult} onSave={onOcrTextSave} />}
@@ -541,6 +676,7 @@ function PdfOcrPanel({ result, onSave }: { result: PdfOcrResult; onSave: (text: 
   const [draft, setDraft] = useState(result.text);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
 
   useEffect(() => {
     setDraft(result.text);
@@ -555,25 +691,28 @@ function PdfOcrPanel({ result, onSave }: { result: PdfOcrResult; onSave: (text: 
   async function saveText() {
     if (draft === result.text) return;
     setSaving(true);
+    setSaveError(undefined);
     try {
       await onSave(draft);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 1800);
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : 'Não foi possível salvar a correção OCR.');
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <details className="pdf-ocr-result" open>
+    <details className="pdf-ocr-result">
       <summary>
-        <span><ScanText size={15} />OCR · confiança {Math.round(result.confidence)}% · {result.language.toUpperCase()}</span>
+        <span><ScanText size={15} />Texto OCR · confiança {Math.round(result.confidence)}% · {result.language.toUpperCase()}</span>
         <span>{draft ? `${draft.length} caracteres` : 'sem texto detectado'}{result.editedAt ? ' · editado' : ''}</span>
       </summary>
       <div className="pdf-ocr-result-body">
         <div className="pdf-ocr-result-actions">
           <button className="pdf-ocr-copy" disabled={!draft} onClick={() => void copyText()}><Copy size={14} />{copied ? 'Copiado' : 'Copiar texto'}</button>
-          <button className="pdf-ocr-copy" disabled={saving || draft === result.text} onClick={() => void saveText()}><Save size={14} />{saving ? 'Salvando...' : saved ? 'Salvo' : 'Salvar correção'}</button>
+          <button className="pdf-ocr-copy" disabled={saving || draft === result.text} onClick={() => void saveText()}><Save size={14} />{saving ? 'Salvando...' : saved ? 'Salvo' : 'Salvar texto OCR'}</button>
         </div>
         <textarea
           className="pdf-ocr-textarea"
@@ -582,7 +721,8 @@ function PdfOcrPanel({ result, onSave }: { result: PdfOcrResult; onSave: (text: 
           placeholder="O texto reconhecido aparecerá aqui para correção."
           aria-label="Texto reconhecido pelo OCR"
         />
-        <p className="pdf-ocr-note">Editar este campo corrige a camada textual do OCR. Para alterar visualmente o PDF, use as ferramentas Cobrir + Texto.</p>
+        {saveError && <p className="pdf-ocr-inline-error">{saveError}</p>}
+        <p className="pdf-ocr-note">Este campo edita a transcrição OCR. Para trocar visualmente uma palavra na página, ative o modo Editar e use “Editar texto na página”.</p>
       </div>
     </details>
   );
@@ -591,6 +731,24 @@ function PdfOcrPanel({ result, onSave }: { result: PdfOcrResult; onSave: (text: 
 function PdfOverlay({ edit }: { edit: PdfEditOperation }) {
   if (edit.type === 'text') {
     return <span className="pdf-overlay-text" style={{ left: `${edit.xRatio * 100}%`, top: `${edit.yRatio * 100}%`, fontSize: `${edit.size}px`, color: colorToCss(edit.color) }}>{edit.text}</span>;
+  }
+
+  if (edit.type === 'ocr-replace') {
+    return (
+      <span
+        className="pdf-overlay-ocr-replace"
+        style={{
+          left: `${edit.xRatio * 100}%`,
+          top: `${edit.yRatio * 100}%`,
+          width: `${edit.widthRatio * 100}%`,
+          height: `${edit.heightRatio * 100}%`,
+          color: colorToCss(edit.color),
+          fontSize: `${Math.max(7, Math.min(30, edit.heightRatio * 720))}px`,
+        }}
+      >
+        {edit.text}
+      </span>
+    );
   }
 
   if (edit.type === 'rectangle') {
