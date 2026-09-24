@@ -42,6 +42,20 @@ export interface PdfPoint {
   yRatio: number;
 }
 
+/**
+ * Palavra reconhecida pelo OCR com caixa normalizada em relação ao canvas.
+ * As coordenadas em 0..1 tornam a camada independente da resolução de renderização.
+ */
+export interface PdfOcrWord {
+  text: string;
+  confidence: number;
+  lineIndex: number;
+  xRatio: number;
+  yRatio: number;
+  widthRatio: number;
+  heightRatio: number;
+}
+
 export interface PdfOcrResult {
   pageIndex: number;
   language: string;
@@ -49,6 +63,7 @@ export interface PdfOcrResult {
   confidence: number;
   recognizedAt: string;
   editedAt?: string;
+  words?: PdfOcrWord[];
 }
 
 interface PdfEditBase {
@@ -90,6 +105,15 @@ export type PdfEditOperation =
       yRatio: number;
       widthRatio: number;
       heightRatio: number;
+    })
+  | (PdfEditBase & {
+      type: 'ocr-replace';
+      xRatio: number;
+      yRatio: number;
+      widthRatio: number;
+      heightRatio: number;
+      text: string;
+      color: PdfColor;
     })
   | (PdfEditBase & {
       type: 'rotate';
