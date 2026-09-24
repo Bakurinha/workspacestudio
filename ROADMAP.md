@@ -23,9 +23,21 @@ O roadmap é orientativo. Funcionalidades somente são consideradas entregues qu
 - Histórico com desfazer/refazer.
 - Exportação de nova cópia preservando o original.
 
-Próximas evoluções do PDF: seleção/movimentação de objetos, redimensionamento, reordenação de páginas, formulários, OCR e edição semântica avançada.
+## 0.3.0 — estabilização PDF + OCR — entregue
 
-## 0.3.0 — planilha avançada
+- Correção do travamento durante desenho livre.
+- Amostragem/compactação de pontos de desenho.
+- Seleção por arraste para Destacar e Cobrir.
+- Prévia visual da seleção de retângulo.
+- OCR local por página com Tesseract.js.
+- Português, Inglês e Português + Inglês.
+- Progresso do reconhecimento.
+- Persistência do resultado OCR no IndexedDB.
+- Texto OCR copiável.
+
+Próximas evoluções do PDF: camada textual pesquisável, seleção/movimentação de objetos, redimensionamento, reordenação de páginas, formulários e edição semântica avançada.
+
+## 0.4.0 — planilha avançada
 
 - Tipos de coluna.
 - Validação de dados.
@@ -37,7 +49,7 @@ Próximas evoluções do PDF: seleção/movimentação de objetos, redimensionam
 - Formulário automático baseado nas colunas.
 - Visualização em cards para mobile.
 
-## 0.4.0 — workspace e comparação
+## 0.5.0 — workspace e comparação
 
 - Projetos/pastas virtuais.
 - Busca universal.
@@ -45,37 +57,37 @@ Próximas evoluções do PDF: seleção/movimentação de objetos, redimensionam
 - Metadados avançados.
 - Exportação/importação da biblioteca de regras.
 
-## 0.5.0 — DOCX
+## 0.6.0 — DOCX
 
 - Camada editável de texto e estilos.
 - Fontes, parágrafos, listas e tabelas.
 - Exportação DOCX validada.
 - Comparação de alterações.
 
-## 0.6.0 — PDF avançado
+## 0.7.0 — PDF avançado
 
 - Seleção e movimentação de objetos adicionados.
 - Redimensionamento de objetos.
 - Reordenação de páginas.
 - Formulários PDF.
 - Comentários e formas.
+- Criação opcional de camada textual pesquisável a partir do OCR.
 - Avaliação de edição semântica do texto existente.
-- OCR opcional após avaliação técnica.
 
-## 0.7.0 — formatos
+## 0.8.0 — formatos
 
 - ODS.
 - XLS legado através de parser isolado, se tecnicamente/licenciamento viável.
 - Importação JSON estruturada.
 - XML tabular.
 
-## 0.8.0 — instalação e integração
+## 0.9.0 — instalação e integração
 
 - Pipeline Android/APK/AAB.
 - Desktop com Capacitor/Electron/Tauri após avaliação.
 - File handlers PWA quando suportado.
 
-## 0.9.0 — sincronização opcional
+## 0.10.0 — sincronização opcional
 
 - Abstração de API.
 - Backend opcional.
