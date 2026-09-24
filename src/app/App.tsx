@@ -28,10 +28,10 @@ import { PdfViewer } from '../modules/viewers/PdfViewer';
 import { TextViewer } from '../modules/viewers/TextViewer';
 import { importFile } from '../services/fileImportService';
 import { commitAddColumn, commitAddRow, commitSpreadsheetAction, listHistory, redo, undo } from '../services/historyService';
-import type { ColumnRule, DocumentRecord, HistoryAction } from '../types/document';
+import type { ColumnRule, DocumentRecord, HistoryAction, SpreadsheetSelection } from '../types/document';
 import { downloadBlob } from '../utils/download';
 
-const APP_VERSION = '0.3.2';
+const APP_VERSION = '0.4.0';
 
 export function App() {
   const { settings, updateSettings } = useAppSettings();
@@ -48,6 +48,7 @@ export function App() {
   const [deleteCandidate, setDeleteCandidate] = useState<DocumentRecord>();
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [columnName, setColumnName] = useState('');
+  const [spreadsheetSelection, setSpreadsheetSelection] = useState<SpreadsheetSelection>();
 
   useEffect(() => { void refreshDocuments(); }, []);
 
@@ -74,6 +75,7 @@ export function App() {
     try {
       const document = await importFile(file);
       await refreshDocuments(document.id);
+      setSpreadsheetSelection(undefined);
       setReadOnly(true);
       notify(`${file.name} importado com o original preservado.`);
     } catch (reason) {
@@ -157,7 +159,10 @@ export function App() {
   async function confirmDeleteDocument() {
     if (!deleteCandidate) return;
     await documentRepository.delete(deleteCandidate.id);
-    if (active?.id === deleteCandidate.id) setActive(undefined);
+    if (active?.id === deleteCandidate.id) {
+      setActive(undefined);
+      setSpreadsheetSelection(undefined);
+    }
     setDeleteCandidate(undefined);
     await refreshDocuments();
   }
@@ -165,6 +170,7 @@ export function App() {
   function changeSheet(index: number) {
     if (!active?.content) return;
     const updated = { ...active, content: { ...active.content, activeSheetIndex: index } };
+    setSpreadsheetSelection(undefined);
     setActive(updated);
     void documentRepository.updateSpreadsheetContent(active.id, updated.content);
   }
@@ -186,7 +192,7 @@ export function App() {
       <aside className={`sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-head"><div><span className="eyebrow">Biblioteca</span><h2>Arquivos</h2></div><button className="icon-button mobile-only" onClick={() => setSidebarOpen(false)}><X size={18} /></button></div>
         <label className="button primary full file-button"><FilePlus2 size={17} />Importar<input hidden type="file" accept=".xlsx,.xlsm,.csv,.pdf,.docx,.txt,.json,.md,.xml" onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleImport(file); }} /></label>
-        <FileList documents={documents} activeId={active?.id} onSelect={(document) => { setActive(document); setReadOnly(true); setSidebarOpen(false); }} onDelete={setDeleteCandidate} />
+        <FileList documents={documents} activeId={active?.id} onSelect={(document) => { setActive(document); setSpreadsheetSelection(undefined); setReadOnly(true); setSidebarOpen(false); }} onDelete={setDeleteCandidate} />
       </aside>
 
       <main className="workspace">
@@ -210,7 +216,7 @@ export function App() {
             {active.metadata.fonts && active.metadata.fonts.length > 0 && <div className="font-banner"><strong>Fontes detectadas:</strong> {active.metadata.fonts.join(', ')}</div>}
 
             <div className="document-surface">
-              {active.kind === 'spreadsheet' && <SpreadsheetWorkspace document={active} readOnly={readOnly} onCellChange={applyCellChange} onSheetChange={changeSheet} onAddRow={addRow} onAddColumn={requestAddColumn} />}
+              {active.kind === 'spreadsheet' && <SpreadsheetWorkspace document={active} readOnly={readOnly} selection={spreadsheetSelection} onSelectionChange={setSpreadsheetSelection} onCellChange={applyCellChange} onSheetChange={changeSheet} onAddRow={addRow} onAddColumn={requestAddColumn} />}
               {active.kind === 'pdf' && <PdfViewer document={active} readOnly={readOnly} onDocumentChange={updateActiveDocument} />}
               {active.kind === 'docx' && <DocxViewer document={active} />}
               {active.kind === 'text' && <TextViewer document={active} />}
@@ -222,7 +228,7 @@ export function App() {
 
       {message && <div className="toast">{message}</div>}
       <SettingsDrawer open={settingsOpen} settings={settings} onClose={() => setSettingsOpen(false)} onChange={(next) => void updateSettings(next)} />
-      {activeSheet && <RulePanel open={rulesOpen} sheet={activeSheet} sheetIndex={active?.content?.activeSheetIndex ?? 0} onClose={() => setRulesOpen(false)} onApply={applyRule} />}
+      {activeSheet && <RulePanel open={rulesOpen} sheet={activeSheet} sheetIndex={active?.content?.activeSheetIndex ?? 0} selection={spreadsheetSelection} onClose={() => setRulesOpen(false)} onApply={applyRule} />}
       {historyOpen && <div className="drawer-backdrop" onMouseDown={() => setHistoryOpen(false)}><aside className="drawer" onMouseDown={(e) => e.stopPropagation()}><div className="drawer-header"><div><span className="eyebrow">Auditoria</span><h2>Histórico</h2></div><button className="icon-button" onClick={() => setHistoryOpen(false)}><X size={20} /></button></div><div className="history-list">{history.length === 0 ? <p className="muted">Nenhuma alteração registrada.</p> : history.map((item) => <div className={`history-item ${item.sequence > (active?.historyCursor ?? 0) ? 'undone' : ''}`} key={item.id}><strong>#{item.sequence} · {item.label}</strong><span>{item.payload.kind === 'cells' ? `${item.payload.changes.length} célula(s)` : item.payload.kind === 'row-add' ? '1 registro' : '1 coluna'} · {new Date(item.createdAt).toLocaleString('pt-BR')}</span></div>)}</div></aside></div>}
       {columnDialogOpen && (
         <div className="dialog-backdrop" onMouseDown={() => setColumnDialogOpen(false)}>
