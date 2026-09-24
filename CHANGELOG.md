@@ -4,6 +4,25 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.1.2] - 2026-09-24
+
+### Corrigido
+- Restaurados na branch `main` os workflows `.github/workflows/deploy-pages.yml` e `.github/workflows/ci.yml`, que estavam documentados na v0.1.1 mas não haviam sido enviados ao repositório.
+- Restaurado o `.gitignore` previsto pela estrutura do projeto.
+- O GitHub Pages passa a receber somente o build `dist/` gerado pelo Vite, evitando servir arquivos `.tsx` diretamente.
+- O workflow de Pages executa testes e build antes do deploy e tenta configurar/habilitar Pages automaticamente quando permitido.
+
+### Alterado
+- CI configurada para validar testes e build em pushes para `main` e pull requests.
+- Versão do projeto alinhada para `0.1.2` no código e documentação.
+
+### Documentação
+- Adicionada a etapa `docs/releases/0.1.2.md` com causa, correção, validação e impacto.
+- README atualizado para refletir que a restauração efetiva dos workflows ocorreu na v0.1.2.
+
+### Observação
+- Como ainda não existe `package-lock.json`, os workflows usam `npm install`. A migração para `npm ci` fica prevista após geração e validação do lockfile.
+
 ## [0.1.1] - 2026-09-24
 
 ### Corrigido

@@ -1,6 +1,6 @@
 # Workspace Studio
 
-**Versão atual:** `0.1.1`
+**Versão atual:** `0.1.2`
 
 Workspace documental local-first para importar, visualizar, editar e exportar dados e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
@@ -27,6 +27,7 @@ Workspace documental local-first para importar, visualizar, editar e exportar da
 - Layout responsivo para desktop, tablet e celular.
 - Manifest de PWA para instalação em navegadores compatíveis.
 - Configuração Capacitor pronta para empacotamento Android.
+- CI e deploy do GitHub Pages via GitHub Actions.
 
 ## Filosofia de dados
 
@@ -99,7 +100,6 @@ Testes:
 npm test
 ```
 
-
 ## Executando corretamente
 
 Este projeto usa **React + TypeScript + Vite**. O `index.html` da raiz é código-fonte de desenvolvimento e **não deve ser aberto diretamente por duplo clique** (`file://`).
@@ -122,11 +122,33 @@ O build pronto para hospedagem fica em `dist/`.
 
 ## GitHub Pages
 
-A partir da v0.1.1 o repositório inclui `.github/workflows/deploy-pages.yml`, que gera o build Vite e publica **somente o diretório `dist/`**. Isso evita a tela branca causada por servir arquivos `.tsx` diretamente.
+A configuração efetiva de deploy está presente a partir da **v0.1.2** em `.github/workflows/deploy-pages.yml`.
 
-No GitHub, em **Settings → Pages**, configure **Source: GitHub Actions**. Depois de um push na branch `main`, o workflow `Deploy GitHub Pages` fará a publicação.
+O fluxo de publicação é:
 
-O Vite usa `base: './'`, permitindo que os assets funcionem tanto em domínio próprio quanto em URLs de projeto como `usuario.github.io/repositorio/`.
+```text
+push em main
+   ↓
+testes
+   ↓
+Vite build
+   ↓
+dist/
+   ↓
+GitHub Pages
+```
+
+O Pages publica **somente o diretório `dist/`**. O código-fonte `.tsx` nunca deve ser usado como publicação estática direta.
+
+O workflow usa `actions/configure-pages` com tentativa de habilitação automática. Se a política da conta/repositório impedir essa configuração automática, abra **Settings → Pages** e selecione **GitHub Actions** como origem.
+
+O Vite usa `base: './'`, permitindo que os assets funcionem em URLs de projeto como `usuario.github.io/repositorio/` e em outros subdiretórios compatíveis.
+
+### Validação automática
+
+O repositório também possui `.github/workflows/ci.yml`, que executa testes e build em pushes para `main` e pull requests.
+
+> Ainda não existe `package-lock.json`, portanto os workflows usam `npm install`. Após gerar e validar o lockfile, a instalação deverá migrar para `npm ci` para builds reproduzíveis.
 
 ## Android / APK
 
@@ -178,6 +200,8 @@ Consulte também:
 - `docs/DEVELOPMENT_RULES.md`
 - `docs/adr/`
 - `docs/releases/0.1.0.md`
+- `docs/releases/0.1.1.md`
+- `docs/releases/0.1.2.md`
 
 ## Formatos
 

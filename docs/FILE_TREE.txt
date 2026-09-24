@@ -16,6 +16,7 @@ docs/adr/ADR-002-original-imutavel.md
 docs/adr/ADR-003-motor-regras.md
 docs/releases/0.1.0.md
 docs/releases/0.1.1.md
+docs/releases/0.1.2.md
 examples/README.md
 examples/inventario-exemplo.csv
 index.html

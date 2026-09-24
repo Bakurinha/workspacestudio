@@ -30,7 +30,7 @@ import { commitAddColumn, commitAddRow, commitSpreadsheetAction, listHistory, re
 import type { ColumnRule, DocumentRecord, HistoryAction } from '../types/document';
 import { downloadBlob } from '../utils/download';
 
-const APP_VERSION = '0.1.1';
+const APP_VERSION = '0.1.2';
 
 export function App() {
   const { settings, updateSettings } = useAppSettings();
