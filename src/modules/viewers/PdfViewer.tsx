@@ -272,8 +272,8 @@ function PdfPage({
 }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const draftPointsRef = useRef<PdfPoint[]>([]);
-  const draftFrameRef = useRef<number>();
-  const rectangleStartRef = useRef<PdfPoint>();
+  const draftFrameRef = useRef<number | undefined>(undefined);
+  const rectangleStartRef = useRef<PdfPoint | undefined>(undefined);
   const [draftPoints, setDraftPoints] = useState<PdfPoint[]>([]);
   const [draftRectangle, setDraftRectangle] = useState<DraftRectangle>();
 
