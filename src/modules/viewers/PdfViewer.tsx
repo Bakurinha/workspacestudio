@@ -9,6 +9,7 @@ import {
   Redo2,
   RotateCcw,
   RotateCw,
+  Save,
   ScanText,
   Trash2,
   Type,
@@ -20,6 +21,7 @@ import { clearPdfEdits, commitPdfEdit, redoPdfEdit, undoPdfEdit } from '../../se
 import {
   persistPdfOcrResult,
   recognizePdfPage,
+  updatePdfOcrText,
   type PdfOcrLanguageMode,
 } from '../../services/pdfOcrService';
 import type { DocumentRecord, PdfColor, PdfEditOperation, PdfOcrResult, PdfPoint } from '../../types/document';
@@ -126,8 +128,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
         setOcrProgress(Math.max(0, Math.min(1, progress)));
         setOcrStatus(status);
       });
-      // Passamos o documento já aberto para preservar a mesma referência de Blob.
-      // Assim salvar o OCR não desmonta e recria todo o PDF.js na interface.
+      // Mantemos a mesma referência do Blob para não reinicializar o PDF.js.
       const updated = await persistPdfOcrResult(document, result);
       onDocumentChange(updated);
     } catch (reason) {
@@ -140,6 +141,11 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
       setOcrProgress(0);
       setOcrStatus('');
     }
+  }
+
+  async function handleOcrTextSave(pageIndex: number, nextText: string) {
+    const updated = await updatePdfOcrText(document, pageIndex, nextText);
+    onDocumentChange(updated);
   }
 
   if (error) return <div className="error-panel">{error}</div>;
@@ -159,7 +165,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             <option value="por-eng">Português + Inglês</option>
           </select>
         </label>
-        <span>Passe o cursor sobre a página para mostrar as ações e executar OCR. O primeiro uso pode baixar a engine e o modelo de idioma; a imagem da página é processada no navegador.</span>
+        <span>Use “Executar OCR” abaixo da página. No primeiro uso a engine e o idioma podem ser baixados; a página é reconhecida no navegador.</span>
       </div>
 
       {!readOnly && (
@@ -224,6 +230,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             canDelete={visiblePages.length > 1}
             onAdd={addOperation}
             onOcr={() => handleOcrPage(pageIndex)}
+            onOcrTextSave={(nextText) => handleOcrTextSave(pageIndex, nextText)}
           />
         ))}
       </div>
@@ -250,6 +257,7 @@ interface PdfPageProps {
   canDelete: boolean;
   onAdd: (operation: PdfEditOperation) => Promise<void>;
   onOcr: () => Promise<void>;
+  onOcrTextSave: (text: string) => Promise<void>;
 }
 
 function PdfPage({
@@ -271,6 +279,7 @@ function PdfPage({
   canDelete,
   onAdd,
   onOcr,
+  onOcrTextSave,
 }: PdfPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const draftPointsRef = useRef<PdfPoint[]>([]);
@@ -350,8 +359,7 @@ function PdfPage({
 
     let next = [...points, point];
     if (next.length > MAX_DRAWING_POINTS) {
-      // Reduz pontos antigos de forma previsível para evitar milhares de renders/objetos
-      // em traços longos, mantendo o formato visual e a interface responsiva.
+      // Reduz pontos antigos de forma previsível para evitar milhares de renders/objetos.
       next = next.filter((_, index) => index % 2 === 0);
     }
     draftPointsRef.current = next;
@@ -496,17 +504,14 @@ function PdfPage({
         {rotation !== 0 && <span className="pdf-rotation-badge">Rotação {((rotation % 360) + 360) % 360}° na exportação</span>}
         <span className="pdf-page-label">Página {pageIndex + 1}</span>
 
-        <div className="pdf-page-actions" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-          <button className="pdf-page-action" disabled={ocrBusy || ocrDisabled} title="Executar OCR nesta página" onClick={() => void onOcr()}><ScanText size={15} /></button>
-          {!readOnly && (
-            <>
-              <button className="pdf-page-action" title="Girar à esquerda" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: -90 })}><RotateCcw size={15} /></button>
-              <button className="pdf-page-action" title="Girar à direita" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: 90 })}><RotateCw size={15} /></button>
-              <label className="pdf-page-action" title="Adicionar imagem"><ImagePlus size={15} /><input hidden type="file" accept="image/png,image/jpeg" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImage(file); event.currentTarget.value = ''; }} /></label>
-              <button className="pdf-page-action" disabled={!canDelete} title={canDelete ? 'Excluir página' : 'O PDF precisa manter uma página'} onClick={() => { if (canDelete) void onAdd({ ...baseOperation(), type: 'delete-page' }); }}><Trash2 size={15} /></button>
-            </>
-          )}
-        </div>
+        {!readOnly && (
+          <div className="pdf-page-actions" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+            <button className="pdf-page-action" title="Girar à esquerda" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: -90 })}><RotateCcw size={15} /></button>
+            <button className="pdf-page-action" title="Girar à direita" onClick={() => void onAdd({ ...baseOperation(), type: 'rotate', degrees: 90 })}><RotateCw size={15} /></button>
+            <label className="pdf-page-action" title="Adicionar imagem"><ImagePlus size={15} /><input hidden type="file" accept="image/png,image/jpeg" onChange={(event) => { const file = event.target.files?.[0]; if (file) void addImage(file); event.currentTarget.value = ''; }} /></label>
+            <button className="pdf-page-action" disabled={!canDelete} title={canDelete ? 'Excluir página' : 'O PDF precisa manter uma página'} onClick={() => { if (canDelete) void onAdd({ ...baseOperation(), type: 'delete-page' }); }}><Trash2 size={15} /></button>
+          </div>
+        )}
 
         {ocrBusy && (
           <div className="pdf-ocr-progress" aria-live="polite">
@@ -517,30 +522,67 @@ function PdfPage({
         )}
       </div>
 
+      <div className="pdf-page-ocr-row">
+        <button className="pdf-ocr-run" disabled={ocrBusy || ocrDisabled} onClick={() => void onOcr()}>
+          <ScanText size={15} />
+          {ocrBusy ? `OCR ${Math.round(ocrProgress * 100)}%` : ocrResult ? 'Executar OCR novamente' : 'Executar OCR nesta página'}
+        </button>
+        <span>{ocrResult ? `Texto reconhecido: ${ocrResult.text.length} caracteres` : 'O OCR cria uma camada textual editável abaixo da página.'}</span>
+      </div>
+
       {ocrError && <div className="pdf-ocr-error">OCR: {ocrError}</div>}
-      {ocrResult && <PdfOcrPanel result={ocrResult} />}
+      {ocrResult && <PdfOcrPanel result={ocrResult} onSave={onOcrTextSave} />}
     </div>
   );
 }
 
-function PdfOcrPanel({ result }: { result: PdfOcrResult }) {
+function PdfOcrPanel({ result, onSave }: { result: PdfOcrResult; onSave: (text: string) => Promise<void> }) {
   const [copied, setCopied] = useState(false);
+  const [draft, setDraft] = useState(result.text);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setDraft(result.text);
+  }, [result.text]);
 
   async function copyText() {
-    await navigator.clipboard.writeText(result.text);
+    await navigator.clipboard.writeText(draft);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   }
 
+  async function saveText() {
+    if (draft === result.text) return;
+    setSaving(true);
+    try {
+      await onSave(draft);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1800);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <details className="pdf-ocr-result">
+    <details className="pdf-ocr-result" open>
       <summary>
         <span><ScanText size={15} />OCR · confiança {Math.round(result.confidence)}% · {result.language.toUpperCase()}</span>
-        <span>{result.text ? `${result.text.length} caracteres` : 'sem texto detectado'}</span>
+        <span>{draft ? `${draft.length} caracteres` : 'sem texto detectado'}{result.editedAt ? ' · editado' : ''}</span>
       </summary>
       <div className="pdf-ocr-result-body">
-        <button className="pdf-ocr-copy" disabled={!result.text} onClick={() => void copyText()}><Copy size={14} />{copied ? 'Copiado' : 'Copiar texto'}</button>
-        <pre>{result.text || 'Nenhum texto foi reconhecido nesta página.'}</pre>
+        <div className="pdf-ocr-result-actions">
+          <button className="pdf-ocr-copy" disabled={!draft} onClick={() => void copyText()}><Copy size={14} />{copied ? 'Copiado' : 'Copiar texto'}</button>
+          <button className="pdf-ocr-copy" disabled={saving || draft === result.text} onClick={() => void saveText()}><Save size={14} />{saving ? 'Salvando...' : saved ? 'Salvo' : 'Salvar correção'}</button>
+        </div>
+        <textarea
+          className="pdf-ocr-textarea"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="O texto reconhecido aparecerá aqui para correção."
+          aria-label="Texto reconhecido pelo OCR"
+        />
+        <p className="pdf-ocr-note">Editar este campo corrige a camada textual do OCR. Para alterar visualmente o PDF, use as ferramentas Cobrir + Texto.</p>
       </div>
     </details>
   );
