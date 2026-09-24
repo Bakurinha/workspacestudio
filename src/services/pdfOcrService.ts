@@ -68,25 +68,22 @@ export async function recognizePdfPage(
 }
 
 /**
- * Persiste apenas o resultado textual do OCR no registro do documento.
- * Buscamos a versão mais recente antes de salvar para não sobrescrever edições
- * que possam ter ocorrido enquanto o OCR estava processando.
+ * Persiste o OCR sem buscar novamente o DocumentRecord no IndexedDB.
+ * Isso preserva a mesma referência de originalBlob usada pelo PDF.js e evita
+ * destruir/recarregar o documento visual após cada reconhecimento.
  */
-export async function persistPdfOcrResult(documentId: string, result: PdfOcrResult): Promise<DocumentRecord> {
-  const latest = await documentRepository.get(documentId);
-  if (!latest) throw new Error('Documento não encontrado para salvar o OCR.');
-
+export async function persistPdfOcrResult(document: DocumentRecord, result: PdfOcrResult): Promise<DocumentRecord> {
   const pdfOcr = [
-    ...(latest.pdfOcr ?? []).filter((item) => item.pageIndex !== result.pageIndex),
+    ...(document.pdfOcr ?? []).filter((item) => item.pageIndex !== result.pageIndex),
     result,
   ].sort((a, b) => a.pageIndex - b.pageIndex);
+  const updatedAt = new Date().toISOString();
 
-  const updated: DocumentRecord = {
-    ...latest,
+  await documentRepository.updatePdfOcr(document.id, pdfOcr, updatedAt);
+
+  return {
+    ...document,
     pdfOcr,
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   };
-
-  await documentRepository.save(updated);
-  return updated;
 }
