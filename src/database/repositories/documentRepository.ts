@@ -1,5 +1,5 @@
 import { db } from '../db';
-import type { DocumentRecord, PdfEditOperation, SpreadsheetContent } from '../../types/document';
+import type { DocumentRecord, PdfEditOperation, PdfOcrResult, SpreadsheetContent } from '../../types/document';
 
 export const documentRepository = {
   async save(document: DocumentRecord): Promise<void> {
@@ -27,6 +27,12 @@ export const documentRepository = {
       pdfEditCursor,
       updatedAt: new Date().toISOString(),
     });
+  },
+
+  async updatePdfOcr(id: string, pdfOcr: PdfOcrResult[], updatedAt: string): Promise<void> {
+    // Atualiza somente os dados produzidos pelo OCR. Evitamos salvar/recarregar o
+    // DocumentRecord inteiro para preservar a referência do Blob usada pelo PDF.js.
+    await db.documents.update(id, { pdfOcr, updatedAt });
   },
 
   async updateHistoryState(id: string, historyCursor: number, historySequence: number): Promise<void> {
