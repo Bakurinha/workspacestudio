@@ -31,8 +31,9 @@ export async function exportPdfDocument(document: DocumentRecord): Promise<Blob>
 
   for (const edit of activeEdits) {
     if (edit.type === 'delete-page') continue;
+    if (edit.pageIndex < 0 || edit.pageIndex >= pdf.getPageCount()) continue;
     const page = pdf.getPage(edit.pageIndex);
-    if (!page || deletedPages.has(edit.pageIndex)) continue;
+    if (deletedPages.has(edit.pageIndex)) continue;
     const { width, height } = page.getSize();
 
     if (edit.type === 'rotate') {
@@ -72,6 +73,7 @@ export async function exportPdfDocument(document: DocumentRecord): Promise<Blob>
       for (let index = 1; index < edit.points.length; index += 1) {
         const before = edit.points[index - 1];
         const after = edit.points[index];
+        if (!before || !after) continue;
         page.drawLine({
           start: { x: before.xRatio * width, y: height - before.yRatio * height },
           end: { x: after.xRatio * width, y: height - after.yRatio * height },
@@ -103,7 +105,7 @@ export async function exportPdfDocument(document: DocumentRecord): Promise<Blob>
     .forEach((pageIndex) => pdf.removePage(pageIndex));
 
   const output = await pdf.save();
-  return new Blob([output], { type: 'application/pdf' });
+  return new Blob([output as unknown as BlobPart], { type: 'application/pdf' });
 }
 
 export function activePdfEdits(document: DocumentRecord): PdfEditOperation[] {
