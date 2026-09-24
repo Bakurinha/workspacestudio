@@ -20,12 +20,14 @@
 .pdf-page-frame { position: relative; width: 100%; min-width: 0; line-height: 0; background: white; box-shadow: 0 4px 18px rgba(0,0,0,.32); overflow: hidden; }
 .pdf-page-frame.is-editable { cursor: crosshair; }
 .pdf-page-frame.is-interacting { touch-action: none; user-select: none; -webkit-user-select: none; }
+.pdf-page-frame.ocr-editing { cursor: default; }
 .pdf-page-frame .pdf-page { display: block; width: 100%; max-width: 100%; height: auto; box-shadow: none; background: white; }
 .pdf-overlay { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
 .pdf-overlay-text { position: absolute; line-height: 1; white-space: pre; font-family: Arial, Helvetica, sans-serif; transform: translateY(-2px); }
 .pdf-overlay-rect { position: absolute; }
 .pdf-overlay-drawing { position: absolute; inset: 0; width: 100%; height: 100%; }
 .pdf-overlay-image { position: absolute; object-fit: contain; }
+.pdf-overlay-ocr-replace { position: absolute; display: flex; align-items: center; overflow: hidden; white-space: nowrap; line-height: 1; font-family: Arial, Helvetica, sans-serif; background: #fff; }
 .pdf-draft-rectangle { position: absolute; box-sizing: border-box; outline: 1px dashed #2878ff; outline-offset: -1px; }
 .pdf-draft-rectangle.highlight { background: rgba(255, 225, 0, .35); }
 .pdf-draft-rectangle.whiteout { background: rgba(255, 255, 255, .82); box-shadow: inset 0 0 0 1px rgba(40,120,255,.28); }
@@ -37,12 +39,26 @@
 .pdf-rotation-badge { position: absolute; left: 8px; top: 8px; z-index: 5; padding: 5px 8px; border-radius: 8px; background: rgba(18,22,30,.78); color: white; font-size: 10px; line-height: 1.2; }
 .pdf-page-label { position: absolute; left: 50%; bottom: 8px; z-index: 5; transform: translateX(-50%); padding: 4px 7px; border-radius: 999px; background: rgba(18,22,30,.7); color: white; font-size: 10px; line-height: 1; }
 .pdf-edit-count { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
+
+/* Camada OCR: os botões seguem exatamente as bounding boxes normalizadas do Tesseract. */
+.pdf-ocr-word-layer { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
+.pdf-ocr-word { position: absolute; min-width: 2px; min-height: 2px; padding: 0; border: 1px solid rgba(40,120,255,.28); background: rgba(40,120,255,.04); pointer-events: auto; cursor: text; transition: .1s ease; }
+.pdf-ocr-word:hover { border-color: rgba(40,120,255,.9); background: rgba(40,120,255,.14); }
+.pdf-ocr-word.active { border: 2px solid var(--color-accent); background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
 .pdf-ocr-progress { position: absolute; inset: 50% auto auto 50%; z-index: 8; transform: translate(-50%, -50%); min-width: 190px; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; gap: 6px 9px; padding: 12px 16px; border-radius: 12px; background: rgba(18,22,30,.9); color: white; box-shadow: 0 8px 28px rgba(0,0,0,.28); line-height: 1.2; }
 .pdf-ocr-progress span { grid-column: 1 / -1; max-width: 260px; color: rgba(255,255,255,.72); font-size: 10px; text-align: center; }
 .pdf-page-ocr-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 9px; background: rgba(18,22,30,.74); color: rgba(255,255,255,.72); font-size: 11px; line-height: 1.3; }
+.pdf-ocr-page-buttons { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .pdf-ocr-run { flex: 0 0 auto; min-height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: rgba(255,255,255,.09); color: #fff; cursor: pointer; font-size: 11px; font-weight: 800; }
-.pdf-ocr-run:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+.pdf-ocr-run:hover:not(:disabled), .pdf-ocr-run.active { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.38); }
 .pdf-ocr-run:disabled { opacity: .5; cursor: not-allowed; }
+.pdf-ocr-edit-help { width: 100%; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border)); border-radius: 9px; background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)); color: var(--color-text); font-size: 11px; line-height: 1.5; }
+.pdf-ocr-word-editor { width: 100%; display: grid; grid-template-columns: minmax(120px, .7fr) minmax(180px, 1.4fr) auto auto; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.pdf-ocr-word-editor > div { display: grid; gap: 3px; }
+.pdf-ocr-word-editor > div strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-ocr-word-editor input { width: 100%; min-width: 0; height: 34px; padding: 6px 9px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg); color: var(--color-text); }
+.pdf-ocr-word-editor input:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+.pdf-ocr-inline-error { grid-column: 1 / -1; color: var(--color-danger); font-size: 11px; line-height: 1.4; }
 .pdf-ocr-error { width: 100%; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface)); color: var(--color-danger); font-size: 11px; line-height: 1.4; }
 .pdf-ocr-result { width: 100%; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); color: var(--color-text); line-height: 1.4; overflow: hidden; }
 .pdf-ocr-result summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 11px; cursor: pointer; color: var(--color-text-muted); font-size: 11px; }
@@ -62,6 +78,8 @@
 @media (max-width: 1040px) {
   .pdf-editor-toolbar { top: 154px; }
   .pdf-page-block { width: min(100%, 840px); }
+  .pdf-ocr-word-editor { grid-template-columns: 1fr 1.5fr; }
+  .pdf-ocr-word-editor .button { width: 100%; }
 }
 
 @media (max-width: 780px) {
@@ -77,4 +95,6 @@
   .pdf-page-ocr-row { align-items: flex-start; flex-direction: column; }
   .pdf-ocr-result, .pdf-ocr-error { width: 100%; }
   .pdf-ocr-result summary { align-items: flex-start; flex-direction: column; }
+  .pdf-ocr-word-editor { grid-template-columns: 1fr; }
+  .pdf-ocr-inline-error { grid-column: 1; }
 }
