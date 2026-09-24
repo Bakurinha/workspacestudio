@@ -1,6 +1,6 @@
 # Workspace Studio
 
-**Versão atual:** `0.4.0`
+**Versão atual:** `0.4.1`
 
 Workspace documental local-first para importar, visualizar, editar e exportar planilhas e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
@@ -14,23 +14,22 @@ Workspace documental local-first para importar, visualizar, editar e exportar pl
 - Múltiplas abas, edição de células, adição de registros/colunas e histórico com desfazer/refazer.
 - Motor de regras para colunas com tokens como `{SEQ:4}`, `{ROW}` e `{COLUMN:Marca}`.
 - Regras limitadas a **faixas de linhas**, evitando aplicar uma transformação à coluna inteira sem necessidade.
-- Seleção da faixa diretamente na matriz: clique em uma célula e use **Shift+clique** em outra da mesma coluna; o painel de regras recebe automaticamente coluna, linha inicial e linha final.
+- Seleção da faixa diretamente na matriz: clique em uma célula e use **Shift+clique** em outra da mesma coluna.
 - Clique no cabeçalho de uma coluna para selecionar todos os registros daquela coluna.
-- Sequências começam na primeira linha da faixa selecionada, sem depender da posição absoluta no topo da planilha.
+- Sequências começam na primeira linha da faixa selecionada.
 - Presets de prefixo, sufixo, maiúsculas, minúsculas, trim e localizar/substituir.
 - Biblioteca de regras persistida no IndexedDB.
 - **Edição básica de PDF** com texto, marca-texto, cobertura branca, desenho livre, imagens, rotação e exclusão de páginas.
 - Seleção precisa por arraste para **Destacar** e **Cobrir**.
-- Desenho livre com amostragem de pontos e atualização visual limitada por frame para evitar travamento.
 - Histórico próprio de edição PDF com desfazer/refazer e limpeza das alterações.
 - Exportação do PDF editado para uma nova cópia usando `pdf-lib`.
 - **OCR local por página** com Português, Inglês e Português + Inglês usando Tesseract.js.
-- Ação **Executar OCR** visível abaixo de cada página, sem depender de hover.
-- Worker/core/modelo do Tesseract configurados explicitamente para hospedagem estática e mensagens de erro mais claras.
-- Resultado OCR persistido junto ao documento no IndexedDB, com confiança estimada.
-- Texto OCR exibido em **textarea editável**, com copiar e salvar correção.
-- Correções humanas do OCR persistidas no IndexedDB sem alterar o `originalBlob`.
-- Layout PDF responsivo com largura estável, sem depender de `min-content`/`fit-content` durante o carregamento assíncrono do canvas.
+- OCR solicita também `blocks`, mapeando palavras e suas coordenadas na página.
+- Modo **Editar texto na página** para clicar diretamente nas palavras reconhecidas pelo OCR.
+- Correção visual de uma palavra gera uma operação `ocr-replace`: cobertura branca + novo texto na mesma área.
+- Correções visuais entram no histórico do PDF e são aplicadas na exportação sem alterar o original.
+- Texto OCR completo continua disponível em textarea para revisão/cópia e persistência no IndexedDB.
+- Layout PDF responsivo com largura estável.
 - Visualização de PDF com PDF.js.
 - Visualização de DOCX com `docx-preview`.
 - Visualização de TXT, JSON, Markdown e XML como texto.
@@ -68,7 +67,7 @@ Para aplicar uma regra somente em parte da coluna:
 2. Segure **Shift** e clique na última célula da mesma coluna.
 3. A faixa selecionada fica destacada na matriz.
 4. Abra **Regras**.
-5. O painel já recebe a coluna, a linha inicial e a linha final.
+5. O painel recebe automaticamente a coluna, a linha inicial e a linha final.
 6. Confira a prévia e aplique.
 
 Também é possível alterar manualmente **Linha inicial** e **Linha final** no painel.
@@ -100,38 +99,48 @@ As operações ficam separadas do `originalBlob`. O botão **Exportar** gera `no
 
 ### Limite importante do editor PDF
 
-A v0.4.0 ainda **não reescreve semanticamente o texto já existente no content stream do PDF**. Para corrigir visualmente um trecho existente, use **Cobrir** e depois **Texto**.
+A v0.4.1 ainda **não reescreve semanticamente o content stream original do PDF**. A edição visual OCR cria uma camada de substituição sobre a área reconhecida. O original continua imutável.
 
-## OCR de PDF
+## OCR de PDF e edição visual
 
-O OCR funciona também em **Modo Leitura**.
+O OCR pode ser executado em modo Leitura, mas a substituição visual exige **modo Editar**.
 
 1. Abra o PDF.
 2. Escolha Português, Inglês ou Português + Inglês.
-3. Clique em **Executar OCR nesta página** abaixo da página desejada.
-4. Aguarde o progresso.
-5. O texto reconhecido aparece em um campo editável.
-6. Corrija o texto, se necessário, e clique em **Salvar correção**.
+3. Clique em **Executar OCR nesta página**.
+4. Aguarde o reconhecimento.
+5. Clique em **Editar** no documento.
+6. Clique em **Editar texto na página** abaixo da página.
+7. As palavras reconhecidas recebem caixas discretas.
+8. Clique na palavra desejada.
+9. Digite o novo valor e clique em **Aplicar no PDF**.
+10. Exporte normalmente.
 
 Fluxo:
 
 ```text
 PDF original
    ↓
-PDF.js
+PDF.js → canvas ampliado
    ↓
-Canvas em alta resolução
+Tesseract.js → texto + blocks/word bounding boxes
    ↓
-Tesseract.js / Web Worker
+coordenadas normalizadas 0..1
    ↓
-Texto OCR editável
+seleção da palavra na própria página
    ↓
-IndexedDB
+operação ocr-replace
+   ↓
+pdf-lib na exportação
 ```
 
-O PDF não é enviado pelo código da aplicação para um serviço de OCR. No primeiro uso, os arquivos técnicos da engine e os modelos de idioma podem ser baixados. A v0.4.0 explicita os caminhos do worker/core/modelos para reduzir problemas em bundlers e hospedagens estáticas.
+O `ocr-replace` cobre a área da palavra original com branco e desenha o texto corrigido dentro da mesma caixa. O tamanho do texto é ajustado para caber na largura disponível. Essa operação pode ser desfeita/refeita junto das demais edições PDF.
 
-**Editar o texto OCR corrige a camada textual reconhecida; isso ainda não altera visualmente a página.** Para mudar o visual do PDF, use as ferramentas do editor. Uma futura etapa poderá usar coordenadas por palavra para criar seleção e camada pesquisável diretamente sobre a página.
+O painel **Texto OCR** continua existindo para corrigir a transcrição completa. Editar esse textarea altera a representação textual OCR; já **Editar texto na página** é o caminho para mudança visual no PDF.
+
+Resultados OCR salvos por versões anteriores não possuem coordenadas por palavra. Nesses casos, execute o OCR novamente na página para habilitar a edição direta.
+
+O PDF não é enviado pelo código da aplicação para um serviço remoto de OCR. No primeiro uso, arquivos técnicos da engine e modelos de idioma podem ser baixados.
 
 ## Instalação para desenvolvimento
 
@@ -203,7 +212,7 @@ Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPM
 | XLSX | Sim | Sim | Sim | — | Sim |
 | XLSM | Sim | Sim | Sim* | — | XLSX |
 | CSV | Sim | Sim | Sim | — | Sim |
-| PDF | Sim | Sim | **Sim (básico)** | **Sim + texto editável** | **PDF editado** |
+| PDF | Sim | Sim | **Sim (básico + OCR visual)** | **Sim + palavras mapeadas** | **PDF editado** |
 | DOCX | Sim | Sim | Ainda não | Ainda não | Original |
 | TXT/MD/JSON/XML | Sim | Sim | Ainda não | — | Original |
 
@@ -214,9 +223,11 @@ Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPM
 - O editor de planilhas ainda não replica todos os recursos do Microsoft Excel.
 - A fidelidade de recursos avançados de XLSX depende do suporte do ExcelJS.
 - DOCX pode divergir do Word em layouts complexos.
-- O editor PDF trabalha por operações/camadas e ainda não edita semanticamente texto existente.
+- A substituição OCR é visual e não reescreve semanticamente o content stream original.
+- A fonte usada na substituição OCR é Helvetica nesta fase; aparência pode diferir da fonte original.
+- Caixas OCR podem ser imprecisas em documentos inclinados, borrados ou com layout muito complexo.
 - Imagens adicionadas ao PDF ainda não possuem arraste/redimensionamento interativo.
-- O OCR trabalha por página e ainda não cria uma camada textual pesquisável dentro do PDF exportado.
+- O OCR ainda não cria uma camada de texto invisível pesquisável dentro do PDF exportado.
 - O primeiro OCR pode exigir conexão para carregar engine/dados de idioma do Tesseract.js.
 - `.xls` binário antigo e `.ods` ainda não fazem parte do parser inicial.
 
