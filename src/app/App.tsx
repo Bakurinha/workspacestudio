@@ -23,6 +23,7 @@ import { buildRuleChanges } from '../modules/rules/ruleEngine';
 import { SpreadsheetWorkspace } from '../modules/spreadsheet/SpreadsheetWorkspace';
 import { exportSpreadsheet } from '../modules/spreadsheet/spreadsheetExport';
 import { DocxViewer } from '../modules/viewers/DocxViewer';
+import { exportPdfDocument } from '../modules/viewers/pdfExport';
 import { PdfViewer } from '../modules/viewers/PdfViewer';
 import { TextViewer } from '../modules/viewers/TextViewer';
 import { importFile } from '../services/fileImportService';
@@ -30,7 +31,7 @@ import { commitAddColumn, commitAddRow, commitSpreadsheetAction, listHistory, re
 import type { ColumnRule, DocumentRecord, HistoryAction } from '../types/document';
 import { downloadBlob } from '../utils/download';
 
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.2.0';
 
 export function App() {
   const { settings, updateSettings } = useAppSettings();
@@ -63,6 +64,11 @@ export function App() {
     window.setTimeout(() => setMessage(undefined), 3500);
   }
 
+  function updateActiveDocument(updated: DocumentRecord) {
+    setActive(updated);
+    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+  }
+
   async function handleImport(file: File) {
     setBusy(true);
     try {
@@ -81,10 +87,13 @@ export function App() {
     if (!active) return;
     setBusy(true);
     try {
+      const base = active.name.replace(/\.[^.]+$/, '');
       if (active.kind === 'spreadsheet') {
         const blob = await exportSpreadsheet(active);
-        const base = active.name.replace(/\.[^.]+$/, '');
         downloadBlob(blob, `${base}-editado.${active.extension === 'csv' ? 'csv' : 'xlsx'}`);
+      } else if (active.kind === 'pdf') {
+        const blob = await exportPdfDocument(active);
+        downloadBlob(blob, `${base}-editado.pdf`);
       } else {
         downloadBlob(active.originalBlob, active.name);
       }
@@ -97,16 +106,12 @@ export function App() {
 
   async function applyCellChange(change: Parameters<typeof commitSpreadsheetAction>[2][number]) {
     if (!active || readOnly || change.before === change.after) return;
-    const updated = await commitSpreadsheetAction(active, 'Edição de célula', [change]);
-    setActive(updated);
-    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+    updateActiveDocument(await commitSpreadsheetAction(active, 'Edição de célula', [change]));
   }
 
   async function addRow() {
     if (!active?.content || readOnly) return;
-    const updated = await commitAddRow(active, active.content.activeSheetIndex);
-    setActive(updated);
-    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+    updateActiveDocument(await commitAddRow(active, active.content.activeSheetIndex));
   }
 
   function requestAddColumn() {
@@ -117,9 +122,7 @@ export function App() {
 
   async function confirmAddColumn() {
     if (!active?.content || readOnly) return;
-    const updated = await commitAddColumn(active, active.content.activeSheetIndex, columnName);
-    setActive(updated);
-    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+    updateActiveDocument(await commitAddColumn(active, active.content.activeSheetIndex, columnName));
     setColumnDialogOpen(false);
   }
 
@@ -130,25 +133,19 @@ export function App() {
       notify('A regra não produziria alterações.');
       return;
     }
-    const updated = await commitSpreadsheetAction(active, `Regra: ${rule.name}`, changes);
-    setActive(updated);
-    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+    updateActiveDocument(await commitSpreadsheetAction(active, `Regra: ${rule.name}`, changes));
     setRulesOpen(false);
     notify(`${changes.length} células alteradas pela regra.`);
   }
 
   async function handleUndo() {
     if (!active) return;
-    const updated = await undo(active);
-    setActive(updated);
-    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+    updateActiveDocument(await undo(active));
   }
 
   async function handleRedo() {
     if (!active) return;
-    const updated = await redo(active);
-    setActive(updated);
-    setDocuments((items) => items.map((item) => item.id === updated.id ? updated : item));
+    updateActiveDocument(await redo(active));
   }
 
   async function openHistory() {
@@ -214,7 +211,7 @@ export function App() {
 
             <div className="document-surface">
               {active.kind === 'spreadsheet' && <SpreadsheetWorkspace document={active} readOnly={readOnly} onCellChange={applyCellChange} onSheetChange={changeSheet} onAddRow={addRow} onAddColumn={requestAddColumn} />}
-              {active.kind === 'pdf' && <PdfViewer document={active} />}
+              {active.kind === 'pdf' && <PdfViewer document={active} readOnly={readOnly} onDocumentChange={updateActiveDocument} />}
               {active.kind === 'docx' && <DocxViewer document={active} />}
               {active.kind === 'text' && <TextViewer document={active} />}
               {active.kind === 'unknown' && <div className="empty-state">O arquivo foi preservado no IndexedDB, mas este formato ainda não possui visualizador especializado.</div>}
