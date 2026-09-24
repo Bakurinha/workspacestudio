@@ -1,5 +1,5 @@
 import { db } from '../db';
-import type { DocumentRecord, SpreadsheetContent } from '../../types/document';
+import type { DocumentRecord, PdfEditOperation, SpreadsheetContent } from '../../types/document';
 
 export const documentRepository = {
   async save(document: DocumentRecord): Promise<void> {
@@ -17,6 +17,14 @@ export const documentRepository = {
   async updateSpreadsheetContent(id: string, content: SpreadsheetContent): Promise<void> {
     await db.documents.update(id, {
       content,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async updatePdfEdits(id: string, pdfEdits: PdfEditOperation[], pdfEditCursor: number): Promise<void> {
+    await db.documents.update(id, {
+      pdfEdits,
+      pdfEditCursor,
       updatedAt: new Date().toISOString(),
     });
   },
