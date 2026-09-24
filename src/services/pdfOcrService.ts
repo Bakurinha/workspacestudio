@@ -10,6 +10,10 @@ export interface PdfOcrProgress {
   status: string;
 }
 
+const TESSERACT_WORKER_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js';
+const TESSERACT_CORE_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0';
+const TESSERACT_LANGUAGE_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
+
 /**
  * Converte o modo exibido pela interface nos idiomas aceitos pelo Tesseract.
  * Para OCR bilíngue usamos um array, conforme a API oficial do Tesseract.js.
@@ -21,8 +25,8 @@ export function languagesForOcrMode(mode: PdfOcrLanguageMode): string | string[]
 
 /**
  * Renderiza uma página do PDF em alta resolução e executa OCR no canvas.
- * O conteúdo do documento permanece no navegador; Tesseract.js usa um Web Worker
- * e pode baixar os arquivos de engine/idioma necessários durante a primeira execução.
+ * Os caminhos do worker/core são explícitos porque bundlers podem mover o entrypoint
+ * interno do Tesseract.js e quebrar a descoberta automática em hospedagens estáticas.
  */
 export async function recognizePdfPage(
   page: PDFPageProxy,
@@ -41,20 +45,33 @@ export async function recognizePdfPage(
   canvas.width = Math.max(1, Math.floor(viewport.width));
   canvas.height = Math.max(1, Math.floor(viewport.height));
 
+  onProgress?.({ progress: 0.04, status: 'Renderizando página' });
   const renderTask = page.render({ canvas, canvasContext: context, viewport });
   await renderTask.promise;
 
   const languages = languagesForOcrMode(languageMode);
+  let workerError: unknown;
+
+  onProgress?.({ progress: 0.08, status: 'Carregando engine OCR' });
   const worker = await createWorker(languages, OEM.LSTM_ONLY, {
+    workerPath: TESSERACT_WORKER_PATH,
+    corePath: TESSERACT_CORE_PATH,
+    langPath: TESSERACT_LANGUAGE_PATH,
     logger: (message) => {
       if (typeof message.progress === 'number') {
-        onProgress?.({ progress: message.progress, status: message.status ?? 'Processando OCR' });
+        onProgress?.({ progress: Math.max(0.08, message.progress), status: message.status ?? 'Processando OCR' });
       }
+    },
+    errorHandler: (error) => {
+      workerError = error;
     },
   });
 
   try {
+    await worker.setParameters({ preserve_interword_spaces: '1' });
     const result = await worker.recognize(canvas);
+    if (workerError) throw workerError;
+
     return {
       pageIndex: page.pageNumber - 1,
       language: Array.isArray(languages) ? languages.join('+') : languages,
@@ -62,6 +79,9 @@ export async function recognizePdfPage(
       confidence: Number.isFinite(result.data.confidence) ? result.data.confidence : 0,
       recognizedAt: new Date().toISOString(),
     };
+  } catch (reason) {
+    const detail = reason instanceof Error ? reason.message : String(reason ?? 'erro desconhecido');
+    throw new Error(`OCR não pôde ser executado. Verifique a conexão no primeiro uso e tente novamente. Detalhe: ${detail}`);
   } finally {
     await worker.terminate();
   }
@@ -86,4 +106,21 @@ export async function persistPdfOcrResult(document: DocumentRecord, result: PdfO
     pdfOcr,
     updatedAt,
   };
+}
+
+/**
+ * Salva correções humanas sobre o texto reconhecido. A correção altera somente
+ * a camada textual de OCR; o conteúdo visual original do PDF continua imutável.
+ */
+export async function updatePdfOcrText(document: DocumentRecord, pageIndex: number, text: string): Promise<DocumentRecord> {
+  const current = document.pdfOcr?.find((item) => item.pageIndex === pageIndex);
+  if (!current) throw new Error('Execute o OCR desta página antes de editar o texto reconhecido.');
+
+  const edited: PdfOcrResult = {
+    ...current,
+    text,
+    editedAt: new Date().toISOString(),
+  };
+
+  return persistPdfOcrResult(document, edited);
 }
