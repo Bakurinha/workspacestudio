@@ -27,7 +27,8 @@
 .pdf-draft-rectangle { position: absolute; box-sizing: border-box; outline: 1px dashed #2878ff; outline-offset: -1px; }
 .pdf-draft-rectangle.highlight { background: rgba(255, 225, 0, .35); }
 .pdf-draft-rectangle.whiteout { background: rgba(255, 255, 255, .82); box-shadow: inset 0 0 0 1px rgba(40,120,255,.28); }
-.pdf-page-actions { position: absolute; top: 8px; right: 8px; z-index: 6; display: flex; align-items: center; gap: 5px; padding: 5px; border-radius: 10px; background: rgba(18, 22, 30, .82); backdrop-filter: blur(8px); }
+.pdf-page-actions { position: absolute; top: 8px; right: 8px; z-index: 6; display: flex; align-items: center; gap: 5px; padding: 5px; border-radius: 10px; background: rgba(18, 22, 30, .82); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease; }
+.pdf-page-frame:hover .pdf-page-actions, .pdf-page-actions:focus-within { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .pdf-page-action { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: rgba(255,255,255,.08); color: white; cursor: pointer; }
 .pdf-page-action:hover:not(:disabled) { background: rgba(255,255,255,.16); }
 .pdf-page-action:disabled { opacity: .45; cursor: not-allowed; }
@@ -44,6 +45,10 @@
 .pdf-ocr-result pre { max-height: 260px; margin: 0; padding: 10px; overflow: auto; white-space: pre-wrap; word-break: break-word; border-radius: 8px; background: var(--color-bg); color: var(--color-text); font: 12px/1.55 "Cascadia Code", Consolas, monospace; }
 .pdf-ocr-copy { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 8px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-surface); color: var(--color-text); cursor: pointer; font-size: 11px; font-weight: 700; }
 .pdf-ocr-copy:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (hover: none) {
+  .pdf-page-actions { opacity: 1; pointer-events: auto; transform: none; }
+}
 
 @media (max-width: 1040px) {
   .pdf-editor-toolbar { top: 154px; }
