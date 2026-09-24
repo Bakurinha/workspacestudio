@@ -4,6 +4,24 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.3.1] - 2026-09-24
+
+### Corrigido
+- OCR não substitui mais o `DocumentRecord` aberto por uma cópia relida do IndexedDB após o reconhecimento.
+- Persistência de OCR passa a atualizar somente `pdfOcr` e `updatedAt`, preservando a mesma referência de `originalBlob` usada pelo PDF.js.
+- Evitada a destruição/recriação desnecessária do visualizador PDF após cada OCR, que podia deixar o canvas instável ou invisível.
+- Controles flutuantes das páginas deixaram de ficar permanentemente visíveis em desktop, reduzindo o efeito de “chuva de ícones” em PDFs com várias páginas.
+
+### Alterado
+- Em desktop, as ações de página aparecem ao passar o cursor ou ao focar um controle.
+- Em dispositivos sem hover, os controles continuam visíveis para manter acessibilidade por toque.
+- Texto de orientação do OCR atualizado para explicar onde encontrar a ação por página.
+- Versão do projeto atualizada para `0.3.1`.
+
+### Documentação
+- README atualizado com o comportamento de estabilidade do OCR e a nova apresentação dos controles.
+- Adicionada nota de release `docs/releases/0.3.1.md`.
+
 ## [0.3.0] - 2026-09-24
 
 ### Adicionado
