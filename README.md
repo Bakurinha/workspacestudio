@@ -1,6 +1,6 @@
 # Workspace Studio
 
-**Versão atual:** `0.3.1`
+**Versão atual:** `0.3.2`
 
 Workspace documental local-first para importar, visualizar, editar e exportar dados e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
@@ -24,6 +24,7 @@ Workspace documental local-first para importar, visualizar, editar e exportar da
 - Resultado OCR persistido junto ao documento no IndexedDB, com confiança estimada e botão para copiar o texto.
 - Persistência do OCR sem recarregar o `originalBlob`, mantendo o PDF.js estável após o reconhecimento.
 - Controles flutuantes das páginas ocultos por padrão em desktop e exibidos ao passar o cursor/focar, reduzindo poluição visual.
+- Layout PDF responsivo com largura estável, sem depender de `min-content`/`fit-content` durante o carregamento assíncrono do canvas.
 - Visualização de PDF com PDF.js.
 - Visualização de DOCX com `docx-preview`.
 - Visualização de TXT, JSON, Markdown e XML como texto.
@@ -72,7 +73,7 @@ As operações são salvas no IndexedDB separadamente do `originalBlob`. O botã
 
 ### Limite importante do editor PDF
 
-A v0.3.1 ainda **não reescreve semanticamente o texto já existente dentro do content stream do PDF**. Para corrigir visualmente um trecho existente, use **Cobrir** e depois **Texto**.
+A v0.3.2 ainda **não reescreve semanticamente o texto já existente dentro do content stream do PDF**. Para corrigir visualmente um trecho existente, use **Cobrir** e depois **Texto**.
 
 ## OCR de PDF
 
@@ -110,7 +111,9 @@ IndexedDB
 
 O arquivo PDF não é enviado pelo código da aplicação para um serviço de OCR. No primeiro uso, a engine e os dados do idioma necessários ao Tesseract.js podem ser baixados da infraestrutura utilizada pela biblioteca. Portanto, o primeiro OCR pode exigir conexão com a internet e demorar mais.
 
-Na v0.3.1 o resultado OCR é persistido por atualização parcial do registro. O `Blob` original já aberto permanece com a mesma referência em memória, evitando que o PDF.js seja destruído e recriado após cada reconhecimento.
+Na v0.3.1 o resultado OCR passou a ser persistido por atualização parcial do registro. O `Blob` original já aberto permanece com a mesma referência em memória, evitando que o PDF.js seja destruído e recriado após cada reconhecimento.
+
+Na v0.3.2 o layout das páginas deixou de depender de `min-content` e `fit-content`, que podiam colapsar o canvas antes de o PDF.js terminar de definir seu tamanho. As páginas agora usam uma coluna flexível com largura máxima responsiva e o canvas ocupa 100% do frame preservando a proporção.
 
 A qualidade do OCR depende da resolução, nitidez, contraste, orientação e qualidade do documento digitalizado.
 
