@@ -23,7 +23,7 @@ O roadmap é orientativo. Funcionalidades somente são consideradas entregues qu
 - Histórico com desfazer/refazer.
 - Exportação de nova cópia preservando o original.
 
-## 0.3.0 — estabilização PDF + OCR — entregue
+## 0.3.x — estabilização PDF + OCR — entregue
 
 - Correção do travamento durante desenho livre.
 - Amostragem/compactação de pontos de desenho.
@@ -33,23 +33,36 @@ O roadmap é orientativo. Funcionalidades somente são consideradas entregues qu
 - Português, Inglês e Português + Inglês.
 - Progresso do reconhecimento.
 - Persistência do resultado OCR no IndexedDB.
-- Texto OCR copiável.
+- Estabilização do layout PDF e da persistência OCR.
 
-Próximas evoluções do PDF: camada textual pesquisável, seleção/movimentação de objetos, redimensionamento, reordenação de páginas, formulários e edição semântica avançada.
+## 0.4.0 — faixa de regras + OCR editável — entregue
 
-## 0.4.0 — planilha avançada
+- Seleção vertical de faixa diretamente na matriz da planilha.
+- Clique + `Shift+clique` para definir linha inicial/final na mesma coluna.
+- Seleção de toda a coluna pelo cabeçalho.
+- Destaque visual da faixa escolhida.
+- Linha inicial/final configuráveis manualmente no painel de regras.
+- Regras aplicadas somente à faixa selecionada.
+- Sequencial reiniciado na primeira linha da faixa.
+- Ação de OCR visível por página.
+- Texto OCR editável e correções persistidas no IndexedDB.
+- Caminhos explícitos da engine/modelos do Tesseract para hospedagem estática.
+
+Próximas evoluções do OCR/PDF: coordenadas por palavra, camada textual pesquisável, seleção/movimentação de objetos, redimensionamento, reordenação de páginas, formulários e edição semântica avançada.
+
+## 0.5.0 — planilha avançada
 
 - Tipos de coluna.
 - Validação de dados.
 - Fórmulas internas selecionadas.
 - Congelamento visual.
-- Seleção múltipla.
-- Edição em massa por seleção.
+- Seleção múltipla de áreas/colunas.
+- Edição em massa por seleção multidimensional.
 - Regras condicionais.
 - Formulário automático baseado nas colunas.
 - Visualização em cards para mobile.
 
-## 0.5.0 — workspace e comparação
+## 0.6.0 — workspace e comparação
 
 - Projetos/pastas virtuais.
 - Busca universal.
@@ -57,14 +70,14 @@ Próximas evoluções do PDF: camada textual pesquisável, seleção/movimentaç
 - Metadados avançados.
 - Exportação/importação da biblioteca de regras.
 
-## 0.6.0 — DOCX
+## 0.7.0 — DOCX
 
 - Camada editável de texto e estilos.
 - Fontes, parágrafos, listas e tabelas.
 - Exportação DOCX validada.
 - Comparação de alterações.
 
-## 0.7.0 — PDF avançado
+## 0.8.0 — PDF avançado
 
 - Seleção e movimentação de objetos adicionados.
 - Redimensionamento de objetos.
@@ -74,20 +87,20 @@ Próximas evoluções do PDF: camada textual pesquisável, seleção/movimentaç
 - Criação opcional de camada textual pesquisável a partir do OCR.
 - Avaliação de edição semântica do texto existente.
 
-## 0.8.0 — formatos
+## 0.9.0 — formatos
 
 - ODS.
 - XLS legado através de parser isolado, se tecnicamente/licenciamento viável.
 - Importação JSON estruturada.
 - XML tabular.
 
-## 0.9.0 — instalação e integração
+## 0.10.0 — instalação e integração
 
 - Pipeline Android/APK/AAB.
 - Desktop com Capacitor/Electron/Tauri após avaliação.
 - File handlers PWA quando suportado.
 
-## 0.10.0 — sincronização opcional
+## 0.11.0 — sincronização opcional
 
 - Abstração de API.
 - Backend opcional.
