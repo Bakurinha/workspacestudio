@@ -54,6 +54,40 @@ export async function exportPdfDocument(document: DocumentRecord): Promise<Blob>
       continue;
     }
 
+    if (edit.type === 'ocr-replace') {
+      const x = clampRatio(edit.xRatio) * width;
+      const boxWidth = Math.max(4, clampRatio(edit.widthRatio) * width);
+      const boxHeight = Math.max(4, clampRatio(edit.heightRatio) * height);
+      const y = height - clampRatio(edit.yRatio) * height - boxHeight;
+
+      // A correção OCR funciona como uma operação composta: cobre a palavra
+      // reconhecida e redesenha a versão corrigida dentro da mesma caixa.
+      page.drawRectangle({
+        x,
+        y,
+        width: boxWidth,
+        height: boxHeight,
+        color: rgb(1, 1, 1),
+        opacity: 1,
+        borderWidth: 0,
+      });
+
+      let size = Math.max(5, Math.min(72, boxHeight * 0.78));
+      const textWidth = font.widthOfTextAtSize(edit.text, size);
+      if (textWidth > boxWidth * 0.98 && textWidth > 0) {
+        size *= (boxWidth * 0.98) / textWidth;
+      }
+
+      page.drawText(edit.text, {
+        x: x + Math.max(0.5, boxWidth * 0.01),
+        y: y + Math.max(0.5, (boxHeight - size) * 0.45),
+        size: Math.max(4, size),
+        font,
+        color: toPdfColor(edit.color),
+      });
+      continue;
+    }
+
     if (edit.type === 'rectangle') {
       const rectWidth = Math.max(4, clampRatio(edit.widthRatio) * width);
       const rectHeight = Math.max(4, clampRatio(edit.heightRatio) * height);
