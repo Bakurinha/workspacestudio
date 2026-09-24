@@ -1,0 +1,10 @@
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; min-width: 320px; min-height: 100%; }
+html { background: var(--color-bg); }
+body { min-height: 100vh; font-family: var(--font-ui); background: var(--color-bg); color: var(--color-text); }
+button, input, select, textarea { font: inherit; }
+button { color: inherit; }
+button, label.file-button { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-accent) 35%, transparent); outline-offset: 2px; }
+code { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+::selection { background: color-mix(in srgb, var(--color-accent) 35%, transparent); }

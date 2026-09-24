@@ -1,0 +1,71 @@
+:root {
+  color-scheme: light dark;
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --radius-xs: 7px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --sidebar-width: 286px;
+  --topbar-height: 64px;
+
+  --color-bg: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f3f8;
+  --color-text: #172033;
+  --color-text-muted: #657083;
+  --color-border: #dce2ec;
+  --color-accent: #4f66e8;
+  --color-accent-strong: #3f54ce;
+  --color-danger: #c83d4d;
+  --color-warning: #9a6b11;
+  --shadow-1: 0 12px 35px rgba(31, 42, 68, 0.1);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0b111b;
+  --color-surface: #111a28;
+  --color-surface-2: #172234;
+  --color-text: #e8eef7;
+  --color-text-muted: #94a2b8;
+  --color-border: #26344a;
+  --color-accent: #7488ff;
+  --color-accent-strong: #91a0ff;
+  --color-danger: #ff7281;
+  --color-warning: #f0bd63;
+  --shadow-1: 0 12px 35px rgba(0, 0, 0, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --color-bg: #0b111b;
+    --color-surface: #111a28;
+    --color-surface-2: #172234;
+    --color-text: #e8eef7;
+    --color-text-muted: #94a2b8;
+    --color-border: #26344a;
+    --color-accent: #7488ff;
+    --color-accent-strong: #91a0ff;
+    --color-danger: #ff7281;
+    --color-warning: #f0bd63;
+    --shadow-1: 0 12px 35px rgba(0, 0, 0, 0.28);
+  }
+}
+
+:root[data-theme="custom"] {
+  color-scheme: dark light;
+  --color-surface: color-mix(in srgb, var(--color-bg) 92%, var(--color-text) 8%);
+  --color-surface-2: color-mix(in srgb, var(--color-bg) 84%, var(--color-text) 16%);
+  --color-text-muted: color-mix(in srgb, var(--color-text) 62%, var(--color-bg) 38%);
+  --color-border: color-mix(in srgb, var(--color-text) 20%, var(--color-bg) 80%);
+  --color-accent-strong: color-mix(in srgb, var(--color-accent) 85%, var(--color-text) 15%);
+  --color-danger: #e15b64;
+}
