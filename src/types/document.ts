@@ -31,6 +31,14 @@ export interface PdfPoint {
   yRatio: number;
 }
 
+export interface PdfOcrResult {
+  pageIndex: number;
+  language: string;
+  text: string;
+  confidence: number;
+  recognizedAt: string;
+}
+
 interface PdfEditBase {
   id: string;
   pageIndex: number;
@@ -96,6 +104,7 @@ export interface DocumentRecord {
   historySequence: number;
   pdfEdits?: PdfEditOperation[];
   pdfEditCursor?: number;
+  pdfOcr?: PdfOcrResult[];
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'custom';
