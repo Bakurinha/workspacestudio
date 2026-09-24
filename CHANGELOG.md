@@ -4,6 +4,42 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.2.0] - 2026-09-24
+
+### Adicionado
+- Editor básico de PDF integrado ao modo de edição.
+- Inserção de texto com tamanho e cor configuráveis.
+- Destaque/marca-texto por retângulo semitransparente.
+- Ferramenta **Cobrir** para correção visual de conteúdo existente antes de inserir novo texto.
+- Desenho livre com cor e espessura configuráveis.
+- Inserção de imagens PNG/JPEG.
+- Rotação de páginas em passos de 90°.
+- Exclusão de páginas com proteção para impedir PDF sem páginas.
+- Histórico próprio de PDF com desfazer, refazer e limpeza das operações.
+- Persistência das operações de PDF no IndexedDB sem alterar o Blob original.
+- Exportador de PDF editado baseado em `pdf-lib`.
+- Teste unitário para validar geração de PDF editado sem alteração do original.
+- Estilos responsivos dedicados ao editor PDF.
+
+### Alterado
+- Botão Exportar agora gera `nome-editado.pdf` quando o documento ativo é PDF.
+- `DocumentRecord` ganhou suporte a operações e cursor de edição PDF.
+- Repository de documentos ganhou persistência específica para operações PDF.
+- Interface passa a exibir ferramentas PDF apenas quando o usuário sai do modo Leitura.
+- Versão do projeto atualizada para `0.2.0`.
+
+### Decisões
+- Edições PDF são armazenadas como operações separadas e reaplicadas sobre o original no momento da exportação.
+- O arquivo original continua imutável.
+- Componentes React continuam sem acesso direto ao IndexedDB; persistência passa por service/repository.
+- Edição semântica do texto original do PDF não é simulada: a v0.2.0 usa cobertura visual + novo texto quando necessário.
+
+### Limitações conhecidas
+- Texto já existente no content stream do PDF ainda não pode ser reescrito semanticamente.
+- Rotação é aplicada na exportação; recomenda-se anotar antes de rotacionar nesta versão.
+- Imagens possuem posição e tamanho iniciais predefinidos; arrastar/redimensionar ainda não foi implementado.
+- Assinatura criptográfica, OCR, formulários avançados e edição estrutural do conteúdo ficam para etapas futuras.
+
 ## [0.1.2] - 2026-09-24
 
 ### Corrigido
