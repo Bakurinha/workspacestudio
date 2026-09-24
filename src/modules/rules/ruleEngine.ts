@@ -36,6 +36,7 @@ export function applyRuleToValue(
   sheet: SpreadsheetSheet,
   row: CellValue[],
   rowIndex: number,
+  sequenceIndex = rowIndex,
 ): CellValue {
   const current = asText(currentValue);
   switch (rule.type) {
@@ -56,19 +57,38 @@ export function applyRuleToValue(
     case 'template': {
       const start = rule.sequenceStart ?? 1;
       const step = rule.sequenceStep ?? 1;
-      return renderTemplate(rule.template ?? '{SEQ:4}', sheet, row, rowIndex, start + rowIndex * step);
+      // A sequência começa na primeira linha da faixa, e não no topo da planilha.
+      return renderTemplate(rule.template ?? '{SEQ:4}', sheet, row, rowIndex, start + sequenceIndex * step);
     }
   }
+}
+
+function normalizeRange(rule: ColumnRule, rowCount: number) {
+  if (rowCount === 0) return { startIndex: 0, endIndex: -1 };
+
+  const requestedStart = Number.isFinite(rule.startRow) ? Math.trunc(rule.startRow ?? 1) : 1;
+  const requestedEnd = Number.isFinite(rule.endRow) ? Math.trunc(rule.endRow ?? rowCount) : rowCount;
+  const startRow = Math.max(1, Math.min(rowCount, requestedStart));
+  const endRow = Math.max(startRow, Math.min(rowCount, requestedEnd));
+
+  return { startIndex: startRow - 1, endIndex: endRow - 1 };
 }
 
 export function buildRuleChanges(sheet: SpreadsheetSheet, sheetIndex: number, rule: ColumnRule): CellChange[] {
   const columnIndex = sheet.headers.indexOf(rule.targetColumn);
   if (columnIndex < 0) throw new Error(`Coluna não encontrada: ${rule.targetColumn}`);
 
-  return sheet.rows.flatMap((row, rowIndex) => {
+  const { startIndex, endIndex } = normalizeRange(rule, sheet.rows.length);
+  if (endIndex < startIndex) return [];
+
+  const changes: CellChange[] = [];
+  for (let rowIndex = startIndex; rowIndex <= endIndex; rowIndex += 1) {
+    const row = sheet.rows[rowIndex] ?? [];
     const before = row[columnIndex] ?? null;
-    const after = applyRuleToValue(rule, before, sheet, row, rowIndex);
-    if (before === after) return [];
-    return [{ sheetIndex, rowIndex, columnIndex, before, after }];
-  });
+    const after = applyRuleToValue(rule, before, sheet, row, rowIndex, rowIndex - startIndex);
+    if (before === after) continue;
+    changes.push({ sheetIndex, rowIndex, columnIndex, before, after });
+  }
+
+  return changes;
 }
