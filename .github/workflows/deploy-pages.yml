@@ -28,6 +28,11 @@ jobs:
         with:
           node-version: 22
 
+      # O npm 10.9.8 do runner apresentou falha interna do Arborist (edgesOut)
+      # antes da instalação. Fixamos uma versão estável até existir lockfile.
+      - name: Pin npm version
+        run: npm install --global npm@10.8.2
+
       # O repositório ainda não possui package-lock.json. Quando o lockfile for
       # adicionado, esta etapa deve migrar para npm ci para builds reproduzíveis.
       - name: Install dependencies
