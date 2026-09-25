@@ -4,6 +4,24 @@ Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.
 
+## [0.4.2] - 2026-09-25
+
+### Adicionado
+- Camada textual OCR invisível sobre páginas reconhecidas no modo Leitura.
+- Palavras mapeadas pelo Tesseract permanecem como texto real no DOM, alinhadas às bounding boxes reconhecidas.
+- Seleção e cópia de palavras diretamente sobre a página do PDF sem alterar sua aparência visual.
+- Texto OCR passa a ser localizável pelo `Ctrl+F` do navegador dentro do visualizador.
+
+### Alterado
+- A camada OCR selecionável é exibida somente no modo Leitura para não conflitar com desenho, cobertura, destaque ou edição direta de palavras.
+- O texto de orientação do OCR passa a distinguir seleção/pesquisa em modo Leitura e substituição visual em modo Editar.
+- Status por página informa quando a camada selecionável/`Ctrl+F` está ativa.
+- Versão do projeto atualizada para `0.4.2`.
+
+### Observações
+- A camada pesquisável existe no visualizador web; ela ainda não é incorporada como uma text layer invisível dentro do PDF exportado.
+- Resultados OCR antigos sem `words`/bounding boxes precisam ser reconhecidos novamente para ativar seleção e pesquisa sobre a página.
+
 ## [0.4.1] - 2026-09-24
 
 ### Adicionado
@@ -148,7 +166,7 @@ O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Ver
 - Inserção de imagens PNG/JPEG.
 - Rotação de páginas em passos de 90°.
 - Exclusão de páginas com proteção para impedir PDF sem páginas.
-- Histórico próprio de PDF com desfazer/refazer e limpeza das alterações.
+- Histórico próprio de PDF com desfazer/refazer e limpeza das operações.
 - Persistência das operações de PDF no IndexedDB sem alterar o Blob original.
 - Exportador de PDF editado baseado em `pdf-lib`.
 - Teste unitário para validar geração de PDF editado sem alteração do original.
