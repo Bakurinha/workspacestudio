@@ -40,7 +40,12 @@
 .pdf-page-label { position: absolute; left: 50%; bottom: 8px; z-index: 5; transform: translateX(-50%); padding: 4px 7px; border-radius: 999px; background: rgba(18,22,30,.7); color: white; font-size: 10px; line-height: 1; }
 .pdf-edit-count { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
 
-/* Camada OCR: os botões seguem exatamente as bounding boxes normalizadas do Tesseract. */
+/* Camada OCR de leitura: mantém texto real no DOM para seleção/cópia e Ctrl+F sem desenhar por cima do PDF. */
+.pdf-ocr-select-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.pdf-ocr-select-word { position: absolute; display: block; overflow: hidden; pointer-events: auto; user-select: text; -webkit-user-select: text; cursor: text; color: transparent; background: transparent; white-space: nowrap; line-height: 1; font: 12px/1 Arial, Helvetica, sans-serif; }
+.pdf-ocr-select-word::selection { background: rgba(52, 133, 255, .42); color: transparent; }
+
+/* Camada OCR de edição: os botões seguem exatamente as bounding boxes normalizadas do Tesseract. */
 .pdf-ocr-word-layer { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
 .pdf-ocr-word { position: absolute; min-width: 2px; min-height: 2px; padding: 0; border: 1px solid rgba(40,120,255,.28); background: rgba(40,120,255,.04); pointer-events: auto; cursor: text; transition: .1s ease; }
 .pdf-ocr-word:hover { border-color: rgba(40,120,255,.9); background: rgba(40,120,255,.14); }
