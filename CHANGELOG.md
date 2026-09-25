@@ -18,6 +18,11 @@ O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Ver
 - Status por página informa quando a camada selecionável/`Ctrl+F` está ativa.
 - Versão do projeto atualizada para `0.4.2`.
 
+### Infraestrutura
+- CI e deploy do GitHub Pages passam a fixar `npm@10.8.2` antes da instalação das dependências.
+- A alteração contorna uma falha interna reproduzível do npm 10.9.8/Arborist (`Cannot read properties of null (reading 'edgesOut')`) observada nos runners do GitHub antes dos testes.
+- O pin é temporário até o projeto adotar `package-lock.json` e instalação determinística com `npm ci`.
+
 ### Observações
 - A camada pesquisável existe no visualizador web; ela ainda não é incorporada como uma text layer invisível dentro do PDF exportado.
 - Resultados OCR antigos sem `words`/bounding boxes precisam ser reconhecidos novamente para ativar seleção e pesquisa sobre a página.
