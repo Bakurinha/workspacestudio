@@ -196,7 +196,7 @@ export function PdfViewer({ document, readOnly, onDocumentChange }: PdfViewerPro
             <option value="por-eng">Português + Inglês</option>
           </select>
         </label>
-        <span>Execute o OCR abaixo da página. Depois, no modo Editar, use “Editar texto na página” para clicar nas palavras reconhecidas.</span>
+        <span>Após o OCR, o modo Leitura ganha texto selecionável sobre a página e o Ctrl+F pode localizar palavras reconhecidas. No modo Editar, use “Editar texto na página”.</span>
       </div>
 
       {!readOnly && (
@@ -566,6 +566,26 @@ function PdfPage({
           )}
         </div>
 
+        {readOnly && ocrResult?.words && (
+          <div className="pdf-ocr-select-layer" aria-label={`Camada textual OCR da página ${pageIndex + 1}`}>
+            {ocrResult.words.map((word, index) => (
+              <span
+                key={`select-${word.lineIndex}-${index}-${word.text}`}
+                className="pdf-ocr-select-word"
+                style={{
+                  left: `${word.xRatio * 100}%`,
+                  top: `${word.yRatio * 100}%`,
+                  width: `${word.widthRatio * 100}%`,
+                  height: `${word.heightRatio * 100}%`,
+                }}
+                title={word.text}
+              >
+                {word.text}
+              </span>
+            ))}
+          </div>
+        )}
+
         {ocrEditMode && ocrResult?.words && (
           <div className="pdf-ocr-word-layer" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             {ocrResult.words.map((word, index) => (
@@ -629,7 +649,9 @@ function PdfPage({
         <span>
           {ocrResult
             ? hasMappedWords
-              ? `${ocrResult.words?.length ?? 0} palavras mapeadas · ${ocrResult.text.length} caracteres`
+              ? readOnly
+                ? `${ocrResult.words?.length ?? 0} palavras mapeadas · texto selecionável/CTRL+F ativo`
+                : `${ocrResult.words?.length ?? 0} palavras mapeadas · ${ocrResult.text.length} caracteres`
               : 'OCR antigo sem coordenadas. Execute novamente para habilitar edição direta.'
             : 'O OCR reconhece texto e mapeia cada palavra sobre a página.'}
         </span>
@@ -722,7 +744,7 @@ function PdfOcrPanel({ result, onSave }: { result: PdfOcrResult; onSave: (text: 
           aria-label="Texto reconhecido pelo OCR"
         />
         {saveError && <p className="pdf-ocr-inline-error">{saveError}</p>}
-        <p className="pdf-ocr-note">Este campo edita a transcrição OCR. Para trocar visualmente uma palavra na página, ative o modo Editar e use “Editar texto na página”.</p>
+        <p className="pdf-ocr-note">Este campo edita a transcrição OCR. No modo Leitura, as palavras mapeadas também formam uma camada selecionável sobre a página. Para trocar visualmente uma palavra, ative o modo Editar e use “Editar texto na página”.</p>
       </div>
     </details>
   );
