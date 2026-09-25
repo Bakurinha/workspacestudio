@@ -1,6 +1,6 @@
 # Workspace Studio
 
-**Versão atual:** `0.4.1`
+**Versão atual:** `0.4.2`
 
 Workspace documental local-first para importar, visualizar, editar e exportar planilhas e documentos sem alterar o arquivo original. O projeto foi iniciado para estudo e uso próprio, com arquitetura preparada para evolução comercial futura.
 
@@ -28,6 +28,8 @@ Workspace documental local-first para importar, visualizar, editar e exportar pl
 - Modo **Editar texto na página** para clicar diretamente nas palavras reconhecidas pelo OCR.
 - Correção visual de uma palavra gera uma operação `ocr-replace`: cobertura branca + novo texto na mesma área.
 - Correções visuais entram no histórico do PDF e são aplicadas na exportação sem alterar o original.
+- No modo **Leitura**, páginas reconhecidas por OCR possuem uma camada textual invisível sobre as palavras mapeadas.
+- A camada textual permite selecionar/copiar palavras diretamente sobre a página e torna o texto OCR localizável pelo **Ctrl+F do navegador**.
 - Texto OCR completo continua disponível em textarea para revisão/cópia e persistência no IndexedDB.
 - Layout PDF responsivo com largura estável.
 - Visualização de PDF com PDF.js.
@@ -99,9 +101,9 @@ As operações ficam separadas do `originalBlob`. O botão **Exportar** gera `no
 
 ### Limite importante do editor PDF
 
-A v0.4.1 ainda **não reescreve semanticamente o content stream original do PDF**. A edição visual OCR cria uma camada de substituição sobre a área reconhecida. O original continua imutável.
+A v0.4.2 ainda **não reescreve semanticamente o content stream original do PDF**. A edição visual OCR cria uma camada de substituição sobre a área reconhecida. O original continua imutável.
 
-## OCR de PDF e edição visual
+## OCR de PDF, seleção e edição visual
 
 O OCR pode ser executado em modo Leitura, mas a substituição visual exige **modo Editar**.
 
@@ -109,12 +111,13 @@ O OCR pode ser executado em modo Leitura, mas a substituição visual exige **mo
 2. Escolha Português, Inglês ou Português + Inglês.
 3. Clique em **Executar OCR nesta página**.
 4. Aguarde o reconhecimento.
-5. Clique em **Editar** no documento.
-6. Clique em **Editar texto na página** abaixo da página.
-7. As palavras reconhecidas recebem caixas discretas.
-8. Clique na palavra desejada.
-9. Digite o novo valor e clique em **Aplicar no PDF**.
-10. Exporte normalmente.
+5. No modo **Leitura**, arraste sobre o texto reconhecido para selecionar/copiar ou use **Ctrl+F** para localizar uma palavra OCR na página.
+6. Para alterar visualmente uma palavra, clique em **Editar** no documento.
+7. Clique em **Editar texto na página** abaixo da página.
+8. As palavras reconhecidas recebem caixas discretas.
+9. Clique na palavra desejada.
+10. Digite o novo valor e clique em **Aplicar no PDF**.
+11. Exporte normalmente.
 
 Fluxo:
 
@@ -127,7 +130,8 @@ Tesseract.js → texto + blocks/word bounding boxes
    ↓
 coordenadas normalizadas 0..1
    ↓
-seleção da palavra na própria página
+modo Leitura → camada textual selecionável / Ctrl+F
+modo Editar  → seleção da palavra na própria página
    ↓
 operação ocr-replace
    ↓
@@ -136,9 +140,11 @@ pdf-lib na exportação
 
 O `ocr-replace` cobre a área da palavra original com branco e desenha o texto corrigido dentro da mesma caixa. O tamanho do texto é ajustado para caber na largura disponível. Essa operação pode ser desfeita/refeita junto das demais edições PDF.
 
+A camada textual do modo Leitura existe apenas na interface do Workspace Studio. Ela usa as bounding boxes OCR e mantém o texto real no DOM, porém transparente, para preservar a aparência original do PDF enquanto permite seleção e busca.
+
 O painel **Texto OCR** continua existindo para corrigir a transcrição completa. Editar esse textarea altera a representação textual OCR; já **Editar texto na página** é o caminho para mudança visual no PDF.
 
-Resultados OCR salvos por versões anteriores não possuem coordenadas por palavra. Nesses casos, execute o OCR novamente na página para habilitar a edição direta.
+Resultados OCR salvos por versões anteriores sem coordenadas por palavra precisam de nova execução do OCR para habilitar seleção, Ctrl+F e edição direta.
 
 O PDF não é enviado pelo código da aplicação para um serviço remoto de OCR. No primeiro uso, arquivos técnicos da engine e modelos de idioma podem ser baixados.
 
@@ -212,7 +218,7 @@ Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPM
 | XLSX | Sim | Sim | Sim | — | Sim |
 | XLSM | Sim | Sim | Sim* | — | XLSX |
 | CSV | Sim | Sim | Sim | — | Sim |
-| PDF | Sim | Sim | **Sim (básico + OCR visual)** | **Sim + palavras mapeadas** | **PDF editado** |
+| PDF | Sim | Sim + OCR selecionável | **Sim (básico + OCR visual)** | **Sim + palavras mapeadas** | **PDF editado** |
 | DOCX | Sim | Sim | Ainda não | Ainda não | Original |
 | TXT/MD/JSON/XML | Sim | Sim | Ainda não | — | Original |
 
@@ -227,7 +233,7 @@ Consulte também `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/DEVELOPM
 - A fonte usada na substituição OCR é Helvetica nesta fase; aparência pode diferir da fonte original.
 - Caixas OCR podem ser imprecisas em documentos inclinados, borrados ou com layout muito complexo.
 - Imagens adicionadas ao PDF ainda não possuem arraste/redimensionamento interativo.
-- O OCR ainda não cria uma camada de texto invisível pesquisável dentro do PDF exportado.
+- A camada selecionável/CTRL+F existe no visualizador, mas ainda não é incorporada como camada textual invisível dentro do PDF exportado.
 - O primeiro OCR pode exigir conexão para carregar engine/dados de idioma do Tesseract.js.
 - `.xls` binário antigo e `.ods` ainda não fazem parte do parser inicial.
 
