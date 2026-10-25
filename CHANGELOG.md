@@ -1,5 +1,13 @@
 # Changelog
 
+## Segurança — 2026-10-25 (configuração)
+
+- Vite 8.3.5 e Vitest 5.0.5 corrigem alertas da auditoria; overrides restritos de uuid 11.1.1 para ExcelJS/Xcode, com testes de compatibilidade.
+- Lockfile adicionado; CI usa npm ci com scripts de instalação desativados para reduzir execução de código de dependências.
+- Actions fixadas por SHA verificado; permissões de leitura explícitas e credenciais de checkout removidas dos fluxos sem escrita.
+- Dependabot configurado para propor atualizações de Actions e dos pacotes npm aplicáveis, sem merge automático.
+
+
 Todas as alterações relevantes deste projeto serão documentadas aqui.
 
 O formato segue a ideia de Keep a Changelog e o versionamento segue Semantic Versioning.

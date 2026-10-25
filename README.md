@@ -250,3 +250,7 @@ O projeto utiliza Semantic Versioning (`MAJOR.MINOR.PATCH`). Toda atualização 
 ## Licença
 
 Nenhuma licença pública de redistribuição foi escolhida nesta fase. Consulte `LICENSE`.
+
+### Instalação reproduzível e segurança
+
+O lockfile é versionado. Use `npm ci --legacy-peer-deps --ignore-scripts` para instalar as versões verificadas. O CI usa a mesma instalação; Dependabot propõe atualizações sem merge automático.

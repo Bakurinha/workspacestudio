@@ -15,23 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
-      # O npm do runner apresentou falha interna do Arborist (edgesOut) antes
-      # da instalação. Mantemos uma versão estável até existir lockfile.
-      - name: Pin npm version
-        run: npm install --global npm@10.8.2
-
-      # O erro edgesOut também ocorre durante a resolução moderna de peers.
-      # --legacy-peer-deps evita esse caminho interno do Arborist; testes e build
-      # continuam obrigatórios para validar a compatibilidade real da aplicação.
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+      # Lockfile preserva versões e integridade; scripts de pacotes não são necessários ao build.
+      - name: Install locked dependencies
+        run: npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
       - name: Run tests
         run: npm test
