@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: github-pages
@@ -21,23 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
-      # O npm do runner apresentou falha interna do Arborist (edgesOut) antes
-      # da instalação. Mantemos uma versão estável até existir lockfile.
-      - name: Pin npm version
-        run: npm install --global npm@10.8.2
-
-      # O erro edgesOut também ocorre durante a resolução moderna de peers.
-      # --legacy-peer-deps evita esse caminho interno; testes e build continuam
-      # obrigatórios antes de qualquer publicação no GitHub Pages.
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+      # Lockfile preserva versões e integridade; scripts de pacotes não são necessários ao build.
+      - name: Install locked dependencies
+        run: npm ci --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
       - name: Run tests
         run: npm test
@@ -45,13 +38,8 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: ./dist
 
@@ -66,6 +54,9 @@ jobs:
       pages: write
       id-token: write
     steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
